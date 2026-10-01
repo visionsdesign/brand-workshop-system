@@ -1,0 +1,61 @@
+# Visions Design: Brand DNA Workshop
+
+A live, shareable version of the Brand DNA Workshop. The facilitator drives the slides; the client opens a link and follows along in real time. Answers mostly come from the call recording, so nobody has to type. The tone-of-voice sliders and the voice-mechanics choices can be tapped live, and every slide change is time-stamped so the transcript can be matched to each slide afterwards.
+
+The slides are rebuilt from Dom's Figma master (`dKi1IANLZvTn2ooxYH1o9d`) and keep its layout, type and backgrounds.
+
+## Links per client
+
+| Who | Link |
+|---|---|
+| Client | `/w/<link code>` |
+| Facilitator | `/w/<link code>/present`, PIN protected |
+| Timeline export | `/api/w/<link code>/timeline` (facilitator only, also a button in the facilitator view) |
+
+The link code is set in `clients/<slug>/client.md`, section 3, under "Workshop link code". Make it hard to guess, e.g. `prefera-k7m2q9`.
+
+## Running a workshop
+
+1. Prepare the client folder as usual (`New client:`, then `Prepare:`). See `DESIGN.md`.
+2. `npm run content` checks the client files parse. It prints the client link and any warnings.
+3. Deploy (push to the Netlify site). The content is rebuilt on every deploy.
+4. In the session: open the facilitator view, send the client link, and press **Start recording clock** at the moment you start recording the call.
+5. Move with the arrow keys or space. Press **M** to flag a moment worth going back to.
+6. Afterwards, **Download timeline** and drop it in `clients/<slug>/sources/` with the call transcript, then run `Capture:`.
+
+## Facilitator view
+
+- Slide list with include / light / skip per slide (click the chip to change it live; client.md sets the defaults).
+- Baseline and Ask for the current slide, per entity on multi-entity slides.
+- Timers for this slide and its running-order block, against the minutes in client.md.
+- "Client brief" tab: objective, housekeeping, recon and what we know.
+- Word lists for the Power Words / Forbidden List slide are added here and appear on the client's screen.
+
+## Local development
+
+```bash
+npm install
+npm run dev
+```
+
+Opens on port 3000 (`npm run dev -- -p 3110` for another). Without Supabase the app keeps sessions in memory, which is fine for a dry run on one machine. The local facilitator PIN is `0000`.
+
+## Deploying (Netlify + Supabase)
+
+1. Create a Supabase project and run `supabase/schema.sql` in the SQL editor.
+2. In Netlify, set the variables from `.env.example`: `FACILITATOR_PIN`, `SESSION_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+3. Build command `npm run build`. Netlify's Next.js runtime handles the rest.
+
+## What is where
+
+| Path | What |
+|---|---|
+| `src/lib/registry.ts` | The master workshop: every slide's copy and layout type. Change copy here. |
+| `src/components/Slide.tsx`, `src/app/slides.css` | Slide rendering on a 1920 × 1080 canvas, measured from Figma |
+| `scripts/build-content.mjs` | Reads `clients/*/client.md` and `facilitator-notes.md` into `src/content/generated/` |
+| `src/lib/workshop.ts` | Applies a client's skips, bespoke slides and running order to the registry |
+| `src/lib/store.ts` | Session storage (Supabase or in-memory) |
+| `src/lib/sync.ts` | Live sync: Supabase Realtime broadcast, polling as a fallback |
+| `src/lib/timeline.ts` | The timeline export used by `Capture:` |
+
+Facilitator notes are only ever sent to the browser after the PIN check. The client page gets slide copy only.
