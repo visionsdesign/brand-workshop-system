@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { portalStore } from '@/lib/portal/store';
 import { STATUS_LABEL, TIER_LABEL } from '@/lib/portal/types';
@@ -48,6 +49,13 @@ export default async function ClientPortal({
           Hi {w.contactName.split(' ')[0]}. This is your workshop page. Everything you add here goes straight to our creative team.
         </p>
 
+        {guided && booked && (
+          <Link className="pt-booked-banner" href={`/start/${token}/booked`}>
+            <span><strong>Your session is booked{when ? ` for ${when}` : ''}.</strong> See what happens next</span>
+            <span aria-hidden>→</span>
+          </Link>
+        )}
+
         {welcome && (
           <div className="pt-note">
             {paid && <strong>Payment received, thank you. Your VAT invoice is on its way by email.</strong>}
@@ -80,6 +88,7 @@ export default async function ClientPortal({
                     video link to {w.contactEmail}.
                     {w.booking?.status === 'pending' && ' Confirmation can take a minute to arrive.'}
                   </p>
+                  <p><Link href={`/start/${token}/booked`}>See your booking summary and what happens next →</Link></p>
                   {w.booking?.uid && (
                     <p className="pt-hint">
                       Need to change it? <a href={`https://cal.com/reschedule/${w.booking.uid}`} target="_blank" rel="noreferrer">Reschedule</a> or{' '}

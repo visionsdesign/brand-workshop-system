@@ -52,6 +52,7 @@ export function CalBooking({ token, workshopId, calLink, name, email }: Props) {
   const router = useRouter();
   const box = useRef<HTMLDivElement>(null);
   const [saving, setSaving] = useState(false);
+  const handled = useRef(false);
 
   useEffect(() => {
     const Cal = loadCal();
@@ -65,6 +66,8 @@ export function CalBooking({ token, workshopId, calLink, name, email }: Props) {
     ns('ui', { theme: 'dark', hideEventTypeDetails: false, layout: 'month_view' });
 
     const onBooked = async (e: { detail?: { data?: Record<string, any> } }) => {
+      if (handled.current) return; // Cal.com can send both the V1 and V2 success events
+      handled.current = true;
       const d = e.detail?.data ?? {};
       const b = d.booking ?? d;
       setSaving(true);
@@ -73,7 +76,8 @@ export function CalBooking({ token, workshopId, calLink, name, email }: Props) {
         headers: { 'Content-Type': 'application/json', 'x-workshop-token': token },
         body: JSON.stringify({ uid: b.uid ?? null, start: b.startTime ?? d.startTime ?? null, end: b.endTime ?? d.endTime ?? null }),
       }).catch(() => null);
-      router.refresh();
+      // Give Cal.com's own confirmation screen a moment, then show what happens next
+      setTimeout(() => router.push(`/start/${token}/booked`), 1500);
     };
     ns('on', { action: 'bookingSuccessfulV2', callback: onBooked });
     ns('on', { action: 'bookingSuccessful', callback: onBooked });
@@ -82,7 +86,7 @@ export function CalBooking({ token, workshopId, calLink, name, email }: Props) {
   return (
     <div className="pt-cal">
       <div id="cal-workshop" ref={box} className="pt-cal-frame" />
-      {saving && <p className="pt-hint" role="status">Saving your booking…</p>}
+      {saving && <p className="pt-hint" role="status">Booked. Taking you to your summary…</p>}
     </div>
   );
 }

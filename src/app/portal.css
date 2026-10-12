@@ -541,3 +541,60 @@
 .tm-drive-kind { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ui-fg-3); }
 .tm-drive-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; color: var(--ui-fg); font-size: 13.5px; }
 .tm-drive-list .btn { height: 28px; padding: 0 10px; font-size: 12px; }
+
+/* booked summary */
+.pt-booked-page .pt-title { margin-top: 8px; }
+.pt-booked-page .pt-eyebrow { margin-top: 40px; }
+.pt-session {
+  margin: 28px 0 8px;
+  padding: 28px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: #000 url('/img/bg-core.jpg') center / cover no-repeat;
+}
+.pt-session-date { margin: 0; font-size: clamp(26px, 3.2vw, 36px); font-weight: 300; letter-spacing: -0.02em; }
+.pt-session-time { margin: 4px 0 14px; font-size: 20px; font-weight: 300; }
+.pt-session-meta { margin: 0 0 8px; color: rgba(255, 255, 255, 0.85); }
+.pt-session .pt-hint { color: rgba(255, 255, 255, 0.75); }
+.pt-session a, .pt-booked a { color: #fff; }
+.pt-h2 { margin: 48px 0 16px; font-weight: 300; font-size: 28px; letter-spacing: -0.02em; }
+.pt-timeline { list-style: none; margin: 0 0 24px; padding: 0; counter-reset: step; }
+.pt-timeline li { position: relative; padding: 0 0 22px 44px; border-left: 1px solid rgba(255, 255, 255, 0.18); margin-left: 12px; }
+.pt-timeline li:last-child { border-left-color: transparent; padding-bottom: 0; }
+.pt-timeline li::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  left: -13px;
+  top: 0;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  color: #000;
+  font-size: 12px;
+}
+.pt-timeline h3 { margin: 2px 0 4px; font-weight: 400; font-size: 17px; }
+.pt-timeline p { margin: 0; color: rgba(255, 255, 255, 0.7); max-width: 640px; }
+.pt-shared ul { list-style: none; margin: 0 0 20px; padding: 0; }
+.pt-shared li { display: grid; grid-template-columns: 180px 1fr; gap: 12px; padding: 12px 0; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+.pt-shared li span:first-child { color: rgba(255, 255, 255, 0.55); }
+.pt-booked-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  background: #fff;
+  color: #000;
+  text-decoration: none;
+}
+.pt-booked-banner:hover { background: #e8e8e8; }
+@media (max-width: 600px) {
+  .pt-shared li { grid-template-columns: 1fr; gap: 2px; }
+  .pt-session { padding: 22px; }
+}
