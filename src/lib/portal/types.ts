@@ -62,6 +62,11 @@ export interface PortalWorkshop {
   intakeDone: boolean;
   driveFolderUrl: string;
   teamNotes: string;
+  /** Set when bought online: the Stripe Checkout session and what was paid, in pence */
+  stripeSessionId: string | null;
+  amountPaid: number | null;
+  /** Guided session booked through Cal.com */
+  booking: Booking | null;
   /** Self-serve answers by slide ID */
   answers: SelfServeAnswers;
   submittedAt: string | null;
@@ -69,6 +74,14 @@ export interface PortalWorkshop {
   code: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Booking {
+  uid: string | null;
+  start: string | null;
+  end: string | null;
+  /** 'confirmed' once Cal.com's webhook arrives; 'pending' when only the browser reported it */
+  status: 'pending' | 'confirmed' | 'cancelled';
 }
 
 export interface AccessCode {

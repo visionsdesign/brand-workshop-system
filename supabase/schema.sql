@@ -124,3 +124,12 @@ $$;
 
 -- Only the server (service role) may call it
 revoke execute on function portal_merge_answer(uuid, text, jsonb) from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Step 3: online purchase (Stripe) and booking (Cal.com). Safe to run again.
+
+alter table portal_workshops add column if not exists stripe_session_id text;
+alter table portal_workshops add column if not exists amount_paid integer;
+alter table portal_workshops add column if not exists booking jsonb;
+create unique index if not exists portal_workshops_stripe_session
+  on portal_workshops (stripe_session_id) where stripe_session_id is not null;

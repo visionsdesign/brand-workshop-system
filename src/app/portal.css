@@ -513,3 +513,21 @@
 .tm-chat summary { cursor: pointer; color: #8ab4ff; font-size: 13px; }
 .tm-chat p { margin: 6px 0; font-size: 13.5px; white-space: pre-wrap; }
 .tm-chat .who { color: var(--ui-fg-3); }
+
+/* buying */
+.pt-price { margin: 0 0 18px; font-size: 28px; font-weight: 300; letter-spacing: -0.01em; }
+.pt-buy .pt-price { margin-top: 18px; }
+.pt-buy-form { margin-top: 32px; padding: 28px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.14); background: linear-gradient(to top, #000, #101010); }
+.pt-buy-form h2 { margin: 0 0 18px; font-weight: 300; font-size: 26px; }
+.pt-buy .pt-note { margin-top: 24px; }
+.pt-buy .pt-note a { color: #fff; }
+.pt-cal { margin-top: 8px; }
+.pt-cal-frame { width: 100%; min-height: 560px; overflow: auto; border-radius: 12px; }
+.pt-booked p { margin: 0 0 8px; color: rgba(255, 255, 255, 0.85); }
+.pt-booked a { color: #fff; }
+.pt-note strong + strong { display: block; margin-top: 4px; }
+.tm-booking { margin: 0 0 16px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--ui-line-strong); color: var(--ui-fg-2); }
+.tm-booking.confirmed { border-color: rgba(52, 199, 89, 0.4); color: var(--ui-fg); }
+.tm-booking.pending { border-color: rgba(255, 176, 32, 0.4); }
+.pt-credit { max-width: 1200px; margin: -24px auto 0; padding: 0 16px 40px; text-align: center; color: rgba(255, 255, 255, 0.7); font-size: 15px; }
+.pt-credit-left { margin: 0; padding: 0; text-align: left; max-width: 640px; }

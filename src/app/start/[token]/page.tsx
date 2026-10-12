@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { portalStore } from '@/lib/portal/store';
 import { STATUS_LABEL, TIER_LABEL } from '@/lib/portal/types';
+import { CalBooking } from './CalBooking';
 import { CopyLink } from './CopyLink';
 import { FilesStep } from './FilesStep';
 import { IntakeForm } from './IntakeForm';
@@ -13,10 +14,10 @@ export default async function ClientPortal({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ welcome?: string }>;
+  searchParams: Promise<{ welcome?: string; paid?: string }>;
 }) {
   const { token } = await params;
-  const { welcome } = await searchParams;
+  const { welcome, paid } = await searchParams;
   const store = portalStore();
   const w = await store.getByToken(token);
   if (!w) notFound();
@@ -25,6 +26,13 @@ export default async function ClientPortal({
   const files = allFiles.filter((f) => !f.slideId);
   const guided = w.tier === 'guided';
   const filesDone = Boolean(w.intake.filesStep);
+  const calLink = process.env.CALCOM_LINK ?? '';
+  const booked = w.booking && w.booking.status !== 'cancelled';
+  const when = w.booking?.start
+    ? new Date(w.booking.start).toLocaleString('en-GB', {
+        weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London', timeZoneName: 'short',
+      })
+    : '';
   const answered = Object.keys(w.answers ?? {}).length + new Set(allFiles.filter((f) => f.slideId).map((f) => f.slideId)).size;
 
   return (
@@ -42,6 +50,7 @@ export default async function ClientPortal({
 
         {welcome && (
           <div className="pt-note">
+            {paid && <strong>Payment received, thank you. Your VAT invoice is on its way by email.</strong>}
             <strong>Keep this link.</strong> It&apos;s your private way back to this page, so bookmark it or save it somewhere
             safe. Anyone with the link can see and edit your answers.
             <CopyLink />
@@ -61,16 +70,34 @@ export default async function ClientPortal({
             <FilesStep token={token} workshopId={w.id} files={files} status={w.intake.filesStep} canContinue={w.intakeDone} />
           </li>
 
-          <li className={!w.intakeDone ? 'is-locked' : filesDone ? 'is-current' : ''}>
+          <li className={!w.intakeDone ? 'is-locked' : guided && booked ? 'is-done' : filesDone ? 'is-current' : ''}>
             <h2>3. {guided ? 'Book your session' : 'Start your workshop'}</h2>
             {guided ? (
-              w.intakeDone ? (
-                <p>
-                  Thank you. Our team will be in touch at {w.contactEmail} to arrange your two-hour session. Online booking
-                  will appear here soon.
-                </p>
-              ) : (
+              booked ? (
+                <div className="pt-booked">
+                  <p>
+                    <strong>Your session is booked{when ? ` for ${when}` : ''}.</strong> We&apos;ve emailed the details and a
+                    video link to {w.contactEmail}.
+                    {w.booking?.status === 'pending' && ' Confirmation can take a minute to arrive.'}
+                  </p>
+                  {w.booking?.uid && (
+                    <p className="pt-hint">
+                      Need to change it? <a href={`https://cal.com/reschedule/${w.booking.uid}`} target="_blank" rel="noreferrer">Reschedule</a> or{' '}
+                      <a href={`https://cal.com/booking/${w.booking.uid}?cancel=true`} target="_blank" rel="noreferrer">cancel</a>.
+                    </p>
+                  )}
+                </div>
+              ) : !w.intakeDone ? (
                 <p>Once you&apos;ve finished step 1, you&apos;ll be able to book your two-hour session with our team here.</p>
+              ) : !filesDone ? (
+                <p>Finish or skip step 2, then pick a time for your two-hour session here.</p>
+              ) : calLink ? (
+                <>
+                  <p>Pick a time that suits you. Your session runs on a video call, and we&apos;ll prepare using what you&apos;ve shared above.</p>
+                  <CalBooking token={token} workshopId={w.id} calLink={calLink} name={w.contactName} email={w.contactEmail} />
+                </>
+              ) : (
+                <p>Thank you. Our team will be in touch at {w.contactEmail} to arrange your two-hour session.</p>
               )
             ) : !w.intakeDone ? (
               <p>

@@ -35,7 +35,18 @@ export default async function TeamWorkshop({ params }: { params: Promise<{ id: s
       <p className="tm-sub">
         {TIER_LABEL[w.tier]} · {w.contactName}, <a href={`mailto:${w.contactEmail}`}>{w.contactEmail}</a> · started {when(w.createdAt)}
         {w.code && <> · code <code>{w.code}</code></>}
+        {w.amountPaid ? <> · paid online {(w.amountPaid / 100).toLocaleString('en-GB', { style: 'currency', currency: 'GBP' })}</> : null}
       </p>
+
+      {w.tier === 'guided' && (
+        <p className={`tm-booking ${w.booking?.status ?? 'none'}`}>
+          {w.booking && w.booking.status !== 'cancelled'
+            ? <>Session {w.booking.status === 'pending' ? 'booked (awaiting Cal.com confirmation)' : 'booked'}: <b>{w.booking.start ? when(w.booking.start) : 'time to follow'}</b></>
+            : w.booking?.status === 'cancelled'
+              ? 'The client cancelled their booking.'
+              : 'No session booked yet.'}
+        </p>
+      )}
 
       <div className="tm-grid">
         <section className="tm-card">

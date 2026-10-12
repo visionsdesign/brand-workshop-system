@@ -19,7 +19,11 @@ Without Supabase, portal data and uploads are kept in `.data/` on this machine (
 
 **Self-serve workshop** (`/start/<token>/workshop`): every question slide, answered by typing, voice note (audio kept, browser transcript where supported) or tapping, autosaved, then submitted. With `ANTHROPIC_API_KEY` set, each question also offers an AI facilitator (Claude Opus 5.5) that talks the client through it and drafts their answer; the conversation is saved for the team. Limits: 24 messages per question, 400 per workshop. The team sees every answer, voice note and conversation on the workshop page and can download them as markdown for `Capture`.
 
-Coming next: Stripe checkout, Cal.com booking, and Google Drive file listing.
+**Buying online** (`/buy/guided`, `/buy/self-serve`): Stripe Checkout at the prices in `PRICE_GUIDED_PENCE` / `PRICE_SELF_SERVE_PENCE` (plus 20% VAT unless `PRICES_INCLUDE_VAT=true`), with a VAT invoice. The workshop is created on the success page or by the Stripe webhook (`/api/stripe/webhook`, events `checkout.session.completed` and `checkout.session.async_payment_succeeded`), whichever comes first, never twice.
+
+**Booking** (guided): once steps 1 and 2 are done, the Cal.com event in `CALCOM_LINK` appears in step 3 with the client's details and workshop ID attached. Cal.com's webhook (`/api/calcom/webhook`, signed with `CALCOM_WEBHOOK_SECRET`; triggers Booking created, rescheduled, cancelled) confirms it.
+
+Coming next: Google Drive file listing.
 
 ## Links per client
 

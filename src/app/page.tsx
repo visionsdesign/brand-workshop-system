@@ -1,5 +1,9 @@
 import Link from 'next/link';
+import { canBuy, CREDIT_LINE, priceLabel } from '@/lib/portal/payments';
+import type { Tier } from '@/lib/portal/types';
 import { RedeemForm } from './redeem/RedeemForm';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Brand DNA Workshop · Visions Design',
@@ -9,7 +13,8 @@ export const metadata = {
 
 const TIERS = [
   {
-    id: 'guided',
+    id: 'guided' as Tier,
+    slug: 'guided',
     name: 'Guided workshop',
     lead: 'A two-hour live session with our creative team.',
     points: [
@@ -20,7 +25,8 @@ const TIERS = [
     ],
   },
   {
-    id: 'self_serve',
+    id: 'self_serve' as Tier,
+    slug: 'self-serve',
     name: 'Self-serve workshop',
     lead: 'Work through the same workshop at your own pace.',
     points: [
@@ -57,12 +63,18 @@ export default function Home() {
             <h2>{t.name}</h2>
             <p className="pt-tier-lead">{t.lead}</p>
             <ul>{t.points.map((p) => <li key={p}>{p}</li>)}</ul>
-            <button className="pt-btn pt-btn-ghost" disabled title="Online purchase opens soon">
-              Buy online (coming soon)
-            </button>
+            {priceLabel(t.id) && <p className="pt-price">{priceLabel(t.id)}</p>}
+            {canBuy(t.id) ? (
+              <Link className="pt-btn" href={`/buy/${t.slug}`}>Buy now</Link>
+            ) : (
+              <button className="pt-btn pt-btn-ghost" disabled title="Online purchase opens soon">
+                Buy online (coming soon)
+              </button>
+            )}
           </article>
         ))}
       </section>
+      <p className="pt-credit">{CREDIT_LINE}</p>
 
       <section className="pt-redeem" id="code">
         <div>

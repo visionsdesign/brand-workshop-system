@@ -26,6 +26,13 @@ export interface Contact {
   contactEmail: string;
 }
 
+export interface Purchase {
+  tier: Tier;
+  contact: Contact;
+  sessionId: string;
+  amountPaid: number;
+}
+
 /** Where the browser should send a file's bytes */
 export type UploadTarget =
   | { kind: 'local'; path: string }
@@ -35,6 +42,9 @@ export interface PortalStore {
   createCode(c: NewCode): Promise<AccessCode>;
   listCodes(): Promise<AccessCode[]>;
   redeemCode(code: string, contact: Contact): Promise<RedeemResult>;
+  /** Create the workshop for a paid Stripe Checkout session. Idempotent: the same session always returns the same workshop. */
+  createFromPurchase(p: Purchase): Promise<PortalWorkshop>;
+  getByStripeSession(sessionId: string): Promise<PortalWorkshop | null>;
   getByToken(token: string): Promise<PortalWorkshop | null>;
   getById(id: string): Promise<PortalWorkshop | null>;
   listWorkshops(): Promise<PortalWorkshop[]>;
@@ -94,6 +104,9 @@ function blankWorkshop(tier: Tier, contact: Contact, code: string | null): Porta
     teamNotes: '',
     answers: {},
     submittedAt: null,
+    stripeSessionId: null,
+    amountPaid: null,
+    booking: null,
     code,
     createdAt: now,
     updatedAt: now,
@@ -156,6 +169,17 @@ const localStore: PortalStore = {
       await save(db);
       return { workshop: w };
     }),
+  createFromPurchase: (p) =>
+    serial(async () => {
+      const db = await load();
+      const existing = db.workshops.find((w) => w.stripeSessionId === p.sessionId);
+      if (existing) return existing;
+      const w = { ...blankWorkshop(p.tier, p.contact, null), stripeSessionId: p.sessionId, amountPaid: p.amountPaid };
+      db.workshops.unshift(w);
+      await save(db);
+      return w;
+    }),
+  getByStripeSession: async (id) => (await load()).workshops.find((w) => w.stripeSessionId === id) ?? null,
   getByToken: async (token) => (await load()).workshops.find((w) => w.token === token) ?? null,
   getById: async (id) => (await load()).workshops.find((w) => w.id === id) ?? null,
   listWorkshops: async () => (await load()).workshops,
@@ -223,6 +247,9 @@ const rowToWorkshop = (r: Record<string, any>): PortalWorkshop => ({
   teamNotes: r.team_notes ?? '',
   answers: r.answers ?? {},
   submittedAt: r.submitted_at ?? null,
+  stripeSessionId: r.stripe_session_id ?? null,
+  amountPaid: r.amount_paid ?? null,
+  booking: r.booking ?? null,
   code: r.code,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -232,6 +259,7 @@ const workshopToRow = (w: Partial<PortalWorkshop>) => {
     tier: 'tier', status: 'status', clientName: 'client_name', contactName: 'contact_name',
     contactEmail: 'contact_email', intake: 'intake', intakeDone: 'intake_done',
     driveFolderUrl: 'drive_folder_url', teamNotes: 'team_notes', submittedAt: 'submitted_at',
+    stripeSessionId: 'stripe_session_id', amountPaid: 'amount_paid', booking: 'booking',
   };
   // answers are only written through portal_merge_answer, never wholesale
   const row: Record<string, unknown> = {};
@@ -284,7 +312,7 @@ function supabaseStore(db: SupabaseClient): PortalStore {
       if (!claimed.length) return { error: 'That code has just been used. Try again or contact us.' };
       const w = blankWorkshop(c.tier, contact, c.code);
       // New workshops start unsubmitted; leave submitted_at to its column default
-      const { submittedAt: _s, ...fresh } = w;
+      const { submittedAt: _s, stripeSessionId: _p, amountPaid: _a, booking: _b, ...fresh } = w;
       try {
         const row = must(await db.from('portal_workshops').insert({
           id: w.id, token: w.token, code: w.code, ...workshopToRow(fresh),
@@ -295,6 +323,26 @@ function supabaseStore(db: SupabaseClient): PortalStore {
         await db.from('portal_codes').update({ uses: c.uses }).eq('code', codeStr).eq('uses', c.uses + 1);
         throw err;
       }
+    },
+    async createFromPurchase(p) {
+      const existing = await this.getByStripeSession(p.sessionId);
+      if (existing) return existing;
+      const w = blankWorkshop(p.tier, p.contact, null);
+      const { submittedAt: _s, booking: _b, ...fresh } = w;
+      const res = await db.from('portal_workshops').insert({
+        id: w.id, token: w.token, ...workshopToRow({ ...fresh, stripeSessionId: p.sessionId, amountPaid: p.amountPaid }),
+      }).select().single();
+      if (res.error) {
+        // The webhook and the success page can race; the unique index lets only one insert win
+        const winner = await this.getByStripeSession(p.sessionId);
+        if (winner) return winner;
+        throw res.error;
+      }
+      return rowToWorkshop(res.data);
+    },
+    async getByStripeSession(id) {
+      const r = found(await db.from('portal_workshops').select('*').eq('stripe_session_id', id).maybeSingle());
+      return r ? rowToWorkshop(r) : null;
     },
     async getByToken(token) {
       const r = found(await db.from('portal_workshops').select('*').eq('token', token).maybeSingle());
