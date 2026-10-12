@@ -36,3 +36,15 @@ export async function saveIntake(token: string, _prev: IntakeState | undefined, 
   revalidatePath(`/start/${token}`);
   return { saved: true, values: intake };
 }
+
+/** Step 2: the client has shared their files, or has nothing to share */
+export async function setFilesStep(token: string, value: 'done' | 'skipped' | null) {
+  const store = portalStore();
+  const w = await store.getByToken(token);
+  if (!w) return;
+  const intake: Intake = { ...w.intake };
+  if (value) intake.filesStep = value;
+  else delete intake.filesStep;
+  await store.updateWorkshop(w.id, { intake });
+  revalidatePath(`/start/${token}`);
+}

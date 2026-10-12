@@ -17,7 +17,9 @@ Team sign-in is an emailed magic link for `@visionsdesign.co.uk` addresses once 
 
 Without Supabase, portal data and uploads are kept in `.data/` on this machine (not in git). With Supabase they live in the `portal_*` tables and the private `workshop-files` storage bucket; uploads go straight from the browser to storage, so large files never pass through Netlify.
 
-Coming next: self-serve answering (typed, voice notes, and an AI-guided mode), Stripe checkout, Cal.com booking, and Google Drive file listing.
+**Self-serve workshop** (`/start/<token>/workshop`): every question slide, answered by typing, voice note (audio kept, browser transcript where supported) or tapping, autosaved, then submitted. With `ANTHROPIC_API_KEY` set, each question also offers an AI facilitator (Claude Opus 5.5) that talks the client through it and drafts their answer; the conversation is saved for the team. Limits: 24 messages per question, 400 per workshop. The team sees every answer, voice note and conversation on the workshop page and can download them as markdown for `Capture`.
+
+Coming next: Stripe checkout, Cal.com booking, and Google Drive file listing.
 
 ## Links per client
 

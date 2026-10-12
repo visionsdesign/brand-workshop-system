@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
-import { Uploader } from '@/components/portal/Uploader';
 import { portalStore } from '@/lib/portal/store';
 import { STATUS_LABEL, TIER_LABEL } from '@/lib/portal/types';
 import { CopyLink } from './CopyLink';
+import { FilesStep } from './FilesStep';
 import { IntakeForm } from './IntakeForm';
 
 export const dynamic = 'force-dynamic';
@@ -20,8 +20,12 @@ export default async function ClientPortal({
   const store = portalStore();
   const w = await store.getByToken(token);
   if (!w) notFound();
-  const files = await store.listFiles(w.id);
+  const allFiles = await store.listFiles(w.id);
+  // Voice notes belong to the self-serve answers, not the shared files list
+  const files = allFiles.filter((f) => !f.slideId);
   const guided = w.tier === 'guided';
+  const filesDone = Boolean(w.intake.filesStep);
+  const answered = Object.keys(w.answers ?? {}).length + new Set(allFiles.filter((f) => f.slideId).map((f) => f.slideId)).size;
 
   return (
     <main className="pt pt-portal">
@@ -51,24 +55,39 @@ export default async function ClientPortal({
             <IntakeForm token={token} intake={w.intake} done={w.intakeDone} />
           </li>
 
-          <li className={w.intakeDone ? 'is-current' : ''}>
+          <li className={filesDone ? 'is-done' : w.intakeDone ? 'is-current' : ''}>
             <h2>2. Share anything useful</h2>
             <p>Brand guidelines, briefs, pitch decks, screenshots of your website or app. Optional, but it helps.</p>
-            <Uploader workshopId={w.id} token={token} files={files} />
+            <FilesStep token={token} workshopId={w.id} files={files} status={w.intake.filesStep} canContinue={w.intakeDone} />
           </li>
 
-          <li className={w.intakeDone ? '' : 'is-locked'}>
+          <li className={!w.intakeDone ? 'is-locked' : filesDone ? 'is-current' : ''}>
             <h2>3. {guided ? 'Book your session' : 'Start your workshop'}</h2>
             {guided ? (
-              <p>
-                Once you&apos;ve finished step 1, you&apos;ll be able to book your two-hour session with our team here. Until
-                then, we&apos;ll be in touch at {w.contactEmail} to arrange a time.
-              </p>
-            ) : (
+              w.intakeDone ? (
+                <p>
+                  Thank you. Our team will be in touch at {w.contactEmail} to arrange your two-hour session. Online booking
+                  will appear here soon.
+                </p>
+              ) : (
+                <p>Once you&apos;ve finished step 1, you&apos;ll be able to book your two-hour session with our team here.</p>
+              )
+            ) : !w.intakeDone ? (
               <p>
                 Once you&apos;ve finished step 1, you&apos;ll work through the workshop here at your own pace, typing or recording
-                a voice note for each question. This part opens shortly; we&apos;ll email {w.contactEmail} when it&apos;s ready.
+                a voice note for each question.
               </p>
+            ) : (
+              <>
+                <p>
+                  {w.submittedAt
+                    ? 'Thank you, your workshop is with our team. You can still review or change your answers.'
+                    : 'Work through each question at your own pace, typing or recording a voice note. Everything saves as you go, so you can stop and come back.'}
+                </p>
+                <a className="pt-btn" href={`/start/${token}/workshop`}>
+                  {w.submittedAt ? 'Review my answers' : answered ? 'Continue my workshop' : 'Start my workshop'}
+                </a>
+              </>
             )}
           </li>
         </ol>

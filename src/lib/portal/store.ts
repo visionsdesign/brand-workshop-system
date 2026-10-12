@@ -5,7 +5,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import type { AccessCode, PortalWorkshop, Tier, WorkshopFile } from './types';
+import type { AccessCode, PortalWorkshop, SelfServeAnswers, SlideAnswer, Tier, WorkshopFile } from './types';
 
 export const BUCKET = 'workshop-files';
 export const MAX_FILE_BYTES = 50 * 1024 * 1024;
@@ -39,6 +39,8 @@ export interface PortalStore {
   getById(id: string): Promise<PortalWorkshop | null>;
   listWorkshops(): Promise<PortalWorkshop[]>;
   updateWorkshop(id: string, patch: Partial<PortalWorkshop>): Promise<PortalWorkshop | null>;
+  /** Merge one slide's self-serve answer (parts and values merge key by key) and return all answers */
+  mergeAnswer(workshopId: string, slideId: string, patch: SlideAnswer): Promise<SelfServeAnswers>;
   uploadTarget(workshopId: string, name: string): Promise<UploadTarget>;
   writeLocal(path: string, bytes: Uint8Array): Promise<void>;
   addFile(f: Omit<WorkshopFile, 'id' | 'createdAt'>): Promise<WorkshopFile>;
@@ -61,6 +63,14 @@ export const newToken = () => randomBytes(24).toString('base64url');
 export const normaliseCode = (c: string) => c.trim().toUpperCase().replace(/\s+/g, '');
 const safeName = (name: string) => name.replace(/[^\w.\- ]+/g, '_').slice(-120) || 'file';
 
+/** Shallow merge, except parts and values, which merge key by key */
+export function mergeSlideAnswer(old: SlideAnswer | undefined, patch: SlideAnswer): SlideAnswer {
+  const next: SlideAnswer = { ...old, ...patch, updatedAt: new Date().toISOString() };
+  if (patch.parts) next.parts = { ...old?.parts, ...patch.parts };
+  if (patch.values) next.values = { ...old?.values, ...patch.values };
+  return next;
+}
+
 function codeProblem(c: AccessCode | null | undefined): string | null {
   if (!c) return 'That code was not recognised. Check it and try again.';
   if (c.uses >= c.maxUses) return 'That code has already been used.';
@@ -82,6 +92,8 @@ function blankWorkshop(tier: Tier, contact: Contact, code: string | null): Porta
     intakeDone: false,
     driveFolderUrl: '',
     teamNotes: '',
+    answers: {},
+    submittedAt: null,
     code,
     createdAt: now,
     updatedAt: now,
@@ -156,6 +168,16 @@ const localStore: PortalStore = {
       await save(db);
       return w;
     }),
+  mergeAnswer: (workshopId, slideId, patch) =>
+    serial(async () => {
+      const db = await load();
+      const w = db.workshops.find((x) => x.id === workshopId);
+      if (!w) throw new Error('workshop not found');
+      w.answers = { ...w.answers, [slideId]: mergeSlideAnswer(w.answers?.[slideId], patch) };
+      w.updatedAt = new Date().toISOString();
+      await save(db);
+      return w.answers;
+    }),
   uploadTarget: async (workshopId, name) => ({ kind: 'local', path: `${workshopId}/${randomUUID()}-${safeName(name)}` }),
   writeLocal: async (path, bytes) => {
     const full = join(FILES_DIR, path);
@@ -199,6 +221,8 @@ const rowToWorkshop = (r: Record<string, any>): PortalWorkshop => ({
   intakeDone: r.intake_done,
   driveFolderUrl: r.drive_folder_url ?? '',
   teamNotes: r.team_notes ?? '',
+  answers: r.answers ?? {},
+  submittedAt: r.submitted_at ?? null,
   code: r.code,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -207,8 +231,9 @@ const workshopToRow = (w: Partial<PortalWorkshop>) => {
   const map: Record<string, string> = {
     tier: 'tier', status: 'status', clientName: 'client_name', contactName: 'contact_name',
     contactEmail: 'contact_email', intake: 'intake', intakeDone: 'intake_done',
-    driveFolderUrl: 'drive_folder_url', teamNotes: 'team_notes',
+    driveFolderUrl: 'drive_folder_url', teamNotes: 'team_notes', submittedAt: 'submitted_at',
   };
+  // answers are only written through portal_merge_answer, never wholesale
   const row: Record<string, unknown> = {};
   for (const [k, col] of Object.entries(map)) if (k in w) row[col] = (w as Record<string, unknown>)[k];
   return row;
@@ -219,7 +244,8 @@ const rowToCode = (r: Record<string, any>): AccessCode => ({
 });
 const rowToFile = (r: Record<string, any>): WorkshopFile => ({
   id: r.id, workshopId: r.workshop_id, name: r.name, size: r.size, type: r.type ?? '',
-  path: r.path, uploadedBy: r.uploaded_by, createdAt: r.created_at,
+  path: r.path, uploadedBy: r.uploaded_by, slideId: r.slide_id ?? null, transcript: r.transcript ?? null,
+  seconds: r.seconds === null || r.seconds === undefined ? null : Number(r.seconds), createdAt: r.created_at,
 });
 
 function supabaseStore(db: SupabaseClient): PortalStore {
@@ -257,10 +283,18 @@ function supabaseStore(db: SupabaseClient): PortalStore {
         .eq('code', codeStr).eq('uses', c.uses).select());
       if (!claimed.length) return { error: 'That code has just been used. Try again or contact us.' };
       const w = blankWorkshop(c.tier, contact, c.code);
-      const row = must(await db.from('portal_workshops').insert({
-        id: w.id, token: w.token, code: w.code, ...workshopToRow(w),
-      }).select().single());
-      return { workshop: rowToWorkshop(row) };
+      // New workshops start unsubmitted; leave submitted_at to its column default
+      const { submittedAt: _s, ...fresh } = w;
+      try {
+        const row = must(await db.from('portal_workshops').insert({
+          id: w.id, token: w.token, code: w.code, ...workshopToRow(fresh),
+        }).select().single());
+        return { workshop: rowToWorkshop(row) };
+      } catch (err) {
+        // Give the use back so the client can try again with the same code
+        await db.from('portal_codes').update({ uses: c.uses }).eq('code', codeStr).eq('uses', c.uses + 1);
+        throw err;
+      }
     },
     async getByToken(token) {
       const r = found(await db.from('portal_workshops').select('*').eq('token', token).maybeSingle());
@@ -279,6 +313,14 @@ function supabaseStore(db: SupabaseClient): PortalStore {
         .eq('id', id).select().maybeSingle());
       return r ? rowToWorkshop(r) : null;
     },
+    async mergeAnswer(workshopId, slideId, patch) {
+      const answers = must(await db.rpc('portal_merge_answer', {
+        p_id: workshopId,
+        p_slide: slideId,
+        p_val: { ...patch, updatedAt: new Date().toISOString() },
+      }));
+      return answers as SelfServeAnswers;
+    },
     async uploadTarget(workshopId, name) {
       const path = `${workshopId}/${randomUUID()}-${safeName(name)}`;
       const { signedUrl } = must(await db.storage.from(BUCKET).createSignedUploadUrl(path));
@@ -290,6 +332,7 @@ function supabaseStore(db: SupabaseClient): PortalStore {
     async addFile(f) {
       const row = must(await db.from('portal_files').insert({
         workshop_id: f.workshopId, name: f.name, size: f.size, type: f.type, path: f.path, uploaded_by: f.uploadedBy,
+        slide_id: f.slideId, transcript: f.transcript, seconds: f.seconds,
       }).select().single());
       return rowToFile(row);
     },

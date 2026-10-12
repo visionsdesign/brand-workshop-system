@@ -25,7 +25,29 @@ export interface Intake {
   existingLines?: string;
   constraints?: string;
   anythingElse?: string;
+  /** Step 2 on the client page: 'done' after Continue, 'skipped' if they had nothing to share */
+  filesStep?: 'done' | 'skipped';
 }
+
+/** A self-serve answer for one slide. Voice notes live in portal_files (slideId set). */
+export interface SlideAnswer {
+  /** Main typed answer */
+  text?: string;
+  /** Sub-answers for slides with several parts (cards, pyramid tiers, word lists), keyed by part name */
+  parts?: Record<string, string>;
+  /** Tapped answers on interactive slides, same keys as the live session (e.g. S20.scale.0, S21.q2) */
+  values?: Record<string, number | null>;
+  /** AI-guided conversation for this question, saved by the server */
+  chat?: ChatTurn[];
+  updatedAt?: string;
+}
+
+export interface ChatTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export type SelfServeAnswers = Record<string, SlideAnswer>;
 
 export interface PortalWorkshop {
   id: string;
@@ -40,6 +62,9 @@ export interface PortalWorkshop {
   intakeDone: boolean;
   driveFolderUrl: string;
   teamNotes: string;
+  /** Self-serve answers by slide ID */
+  answers: SelfServeAnswers;
+  submittedAt: string | null;
   /** The code redeemed to create this workshop, if any */
   code: string | null;
   createdAt: string;
@@ -67,6 +92,12 @@ export interface WorkshopFile {
   /** Storage key: bucket path in Supabase, relative path on disk locally */
   path: string;
   uploadedBy: 'client' | 'team';
+  /** Set for voice notes recorded against a workshop slide */
+  slideId: string | null;
+  /** Browser speech-to-text transcript of a voice note, when available */
+  transcript: string | null;
+  /** Length of a voice note in seconds */
+  seconds: number | null;
   createdAt: string;
 }
 

@@ -86,3 +86,41 @@ alter table portal_files enable row level security;
 insert into storage.buckets (id, name, public, file_size_limit)
 values ('workshop-files', 'workshop-files', false, 52428800)
 on conflict (id) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Step 2: self-serve answers and voice notes. Safe to run again.
+
+alter table portal_workshops add column if not exists answers jsonb not null default '{}'::jsonb;
+alter table portal_workshops add column if not exists submitted_at timestamptz;
+
+alter table portal_files add column if not exists slide_id text;
+alter table portal_files add column if not exists transcript text;
+alter table portal_files add column if not exists seconds numeric;
+
+-- Merge one slide's answer in a single statement, so two quick autosaves
+-- (or an autosave and a tap) can't overwrite each other. parts and values
+-- merge key by key; other fields replace.
+create or replace function portal_merge_answer(p_id uuid, p_slide text, p_val jsonb)
+returns jsonb
+language sql
+as $$
+  update portal_workshops
+  set answers = jsonb_set(
+        coalesce(answers, '{}'::jsonb),
+        array[p_slide],
+        coalesce(answers -> p_slide, '{}'::jsonb)
+          || (p_val - 'parts' - 'values')
+          || case when p_val ? 'parts'
+               then jsonb_build_object('parts', coalesce(answers -> p_slide -> 'parts', '{}'::jsonb) || (p_val -> 'parts'))
+               else '{}'::jsonb end
+          || case when p_val ? 'values'
+               then jsonb_build_object('values', coalesce(answers -> p_slide -> 'values', '{}'::jsonb) || (p_val -> 'values'))
+               else '{}'::jsonb end
+      ),
+      updated_at = now()
+  where id = p_id
+  returning answers;
+$$;
+
+-- Only the server (service role) may call it
+revoke execute on function portal_merge_answer(uuid, text, jsonb) from public, anon, authenticated;

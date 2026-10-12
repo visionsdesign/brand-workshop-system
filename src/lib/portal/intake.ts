@@ -4,7 +4,7 @@ import type { Intake } from './types';
  * The pre-workshop intake. Mirrors section 5 of clients/_template/client.md so
  * the team can run Prepare from it the same way as for facilitated clients.
  */
-export const INTAKE_FIELDS: { key: keyof Intake; label: string; hint?: string; long?: boolean; required?: boolean }[] = [
+export const INTAKE_FIELDS: { key: Exclude<keyof Intake, 'filesStep'>; label: string; hint?: string; long?: boolean; required?: boolean }[] = [
   { key: 'company', label: 'Company or brand name', required: true },
   { key: 'website', label: 'Website or product link', hint: 'If you have one.' },
   { key: 'sector', label: 'What do you do, and in which sector?', long: true, required: true },

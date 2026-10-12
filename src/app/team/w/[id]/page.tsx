@@ -6,6 +6,7 @@ import { portalStore } from '@/lib/portal/store';
 import { requireTeam } from '@/lib/portal/team';
 import { STATUS_LABEL, TIER_LABEL } from '@/lib/portal/types';
 import { TeamShell } from '../../TeamShell';
+import { TeamAnswers } from './TeamAnswers';
 import { WorkshopForm } from './WorkshopForm';
 
 export const dynamic = 'force-dynamic';
@@ -20,7 +21,9 @@ export default async function TeamWorkshop({ params }: { params: Promise<{ id: s
   const store = portalStore();
   const w = await store.getById(id);
   if (!w) notFound();
-  const files = await store.listFiles(w.id);
+  const allFiles = await store.listFiles(w.id);
+  const files = allFiles.filter((f) => !f.slideId);
+  const voice = allFiles.filter((f) => f.slideId);
 
   return (
     <TeamShell email={email} active="workshops">
@@ -68,6 +71,8 @@ export default async function TeamWorkshop({ params }: { params: Promise<{ id: s
           </section>
         </div>
       </div>
+
+      {w.tier === 'self_serve' && <TeamAnswers w={w} voice={voice} />}
     </TeamShell>
   );
 }
