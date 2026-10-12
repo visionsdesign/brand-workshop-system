@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
+import { teamMember } from './portal/team';
 
 // One facilitator PIN for all workshops (FACILITATOR_PIN). The cookie is
 // scoped to a workshop slug so unlocking one presenter view doesn't unlock others.
@@ -27,6 +28,8 @@ export function facilitatorToken(slug: string) {
 }
 
 export async function isFacilitator(slug: string): Promise<boolean> {
+  // Anyone signed in to the team area can facilitate any workshop
+  if (await teamMember()) return true;
   if (!pin()) return false;
   const jar = await cookies();
   const v = jar.get(cookieName(slug))?.value;

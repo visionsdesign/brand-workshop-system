@@ -1,10 +1,78 @@
+import Link from 'next/link';
+import { RedeemForm } from './redeem/RedeemForm';
+
+export const metadata = {
+  title: 'Brand DNA Workshop · Visions Design',
+  description: 'Find the strategic DNA of your brand with Visions Design, guided by our team or at your own pace.',
+  robots: { index: true, follow: true },
+};
+
+const TIERS = [
+  {
+    id: 'guided',
+    name: 'Guided workshop',
+    lead: 'A two-hour live session with our creative team.',
+    points: [
+      'Book a time that suits you',
+      'We prepare with your brief and files beforehand',
+      'Live, facilitated session on a video call',
+      'Your Brand DNA summary afterwards',
+    ],
+  },
+  {
+    id: 'self_serve',
+    name: 'Self-serve workshop',
+    lead: 'Work through the same workshop at your own pace.',
+    points: [
+      'Answer each question by typing or voice note',
+      'Save and come back whenever you like',
+      'Our team reviews every answer',
+      'Your Brand DNA summary afterwards',
+    ],
+  },
+];
+
 export default function Home() {
   return (
-    <main className="gate">
-      <div className="gate-card">
-        <h1>Brand Workshop</h1>
-        <p>Visions Design. Use the link you were sent to join your workshop.</p>
-      </div>
+    <main className="pt">
+      <section className="pt-hero">
+        <img className="pt-hero-bg" src="/img/bg-title.jpg" alt="" />
+        <header className="pt-bar">
+          <span>Visions Design</span>
+          <Link href="/team">Team sign in</Link>
+        </header>
+        <div className="pt-hero-copy">
+          <p className="pt-eyebrow">Brand workshop</p>
+          <h1>Find the DNA of your brand.</h1>
+          <p className="pt-lede">
+            The same workshop we run with every Visions client: your story, your audience, your voice, and where the brand
+            goes next. Run it with our team, or on your own.
+          </p>
+        </div>
+      </section>
+
+      <section className="pt-tiers" aria-label="Workshop options">
+        {TIERS.map((t) => (
+          <article className="pt-tier" key={t.id}>
+            <h2>{t.name}</h2>
+            <p className="pt-tier-lead">{t.lead}</p>
+            <ul>{t.points.map((p) => <li key={p}>{p}</li>)}</ul>
+            <button className="pt-btn pt-btn-ghost" disabled title="Online purchase opens soon">
+              Buy online (coming soon)
+            </button>
+          </article>
+        ))}
+      </section>
+
+      <section className="pt-redeem" id="code">
+        <div>
+          <h2>Have a workshop code?</h2>
+          <p>Enter it here with your details. We&apos;ll set up your workshop and give you a private link to come back to.</p>
+        </div>
+        <RedeemForm />
+      </section>
+
+      <footer className="pt-foot">© Visions Design</footer>
     </main>
   );
 }

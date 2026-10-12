@@ -72,8 +72,8 @@ export function PresenterView({ workshop: w, notes, initial, initialEvents }: Pr
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement;
-      if (t.closest('input, textarea, [role="slider"]')) return;
+      const t = e.target;
+      if (t instanceof Element && t.closest('input, textarea, select, [role="slider"]')) return;
       if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); go(next); }
       else if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); go(prev); }
       else if (e.key.toLowerCase() === 'm') flag();

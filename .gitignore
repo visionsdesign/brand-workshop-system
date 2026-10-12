@@ -10,3 +10,6 @@ next-env.d.ts
 # Client source material (transcripts, briefs, forms) stays local, out of git
 clients/*/sources/*
 !clients/*/sources/.gitkeep
+
+# Local portal data (workshops, codes, uploads) when Supabase is not configured
+.data

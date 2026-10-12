@@ -13,6 +13,11 @@ export function getWorkshopByCode(code: string): Workshop | null {
   return w ? buildWorkshop(w) : null;
 }
 
+/** Facilitated workshops prepared in the repo (clients/<slug>/), for the team dashboard */
+export function listRepoWorkshops() {
+  return Object.values(raw).map((r) => ({ slug: r.slug, code: r.code, clientName: r.clientName, date: r.date }));
+}
+
 /** What the client's browser receives: slide content only, no planning reasons or timings */
 export function publicWorkshop(w: Workshop): Workshop {
   return {

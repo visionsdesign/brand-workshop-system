@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import './slides.css';
+import './portal.css';
 
 // Helvetica Neue is the template face. Inter Light is the fallback on machines without it (mostly Windows).
 const inter = Inter({ subsets: ['latin'], weight: ['300', '400', '500', '700'], variable: '--font-inter' });

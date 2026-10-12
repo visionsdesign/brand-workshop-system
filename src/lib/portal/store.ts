@@ -1,0 +1,326 @@
+// Portal persistence. Supabase (service role, server only) when SUPABASE_URL and
+// SUPABASE_SERVICE_ROLE_KEY are set; otherwise a JSON file and a files folder
+// under .data/, which is enough to run the portal on one machine.
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { randomBytes, randomUUID } from 'node:crypto';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import type { AccessCode, PortalWorkshop, Tier, WorkshopFile } from './types';
+
+export const BUCKET = 'workshop-files';
+export const MAX_FILE_BYTES = 50 * 1024 * 1024;
+
+export type RedeemResult = { workshop: PortalWorkshop } | { error: string };
+
+export interface NewCode {
+  tier: Tier;
+  label: string;
+  maxUses: number;
+  expiresAt: string | null;
+  createdBy: string;
+}
+
+export interface Contact {
+  clientName: string;
+  contactName: string;
+  contactEmail: string;
+}
+
+/** Where the browser should send a file's bytes */
+export type UploadTarget =
+  | { kind: 'local'; path: string }
+  | { kind: 'supabase'; path: string; signedUrl: string };
+
+export interface PortalStore {
+  createCode(c: NewCode): Promise<AccessCode>;
+  listCodes(): Promise<AccessCode[]>;
+  redeemCode(code: string, contact: Contact): Promise<RedeemResult>;
+  getByToken(token: string): Promise<PortalWorkshop | null>;
+  getById(id: string): Promise<PortalWorkshop | null>;
+  listWorkshops(): Promise<PortalWorkshop[]>;
+  updateWorkshop(id: string, patch: Partial<PortalWorkshop>): Promise<PortalWorkshop | null>;
+  uploadTarget(workshopId: string, name: string): Promise<UploadTarget>;
+  writeLocal(path: string, bytes: Uint8Array): Promise<void>;
+  addFile(f: Omit<WorkshopFile, 'id' | 'createdAt'>): Promise<WorkshopFile>;
+  listFiles(workshopId: string): Promise<WorkshopFile[]>;
+  getFile(id: string): Promise<WorkshopFile | null>;
+  /** Local: the bytes. Supabase: a short-lived signed URL to redirect to. */
+  download(f: WorkshopFile): Promise<{ bytes: Uint8Array } | { url: string }>;
+  deleteFile(id: string): Promise<void>;
+}
+
+// ---------- shared helpers ----------
+
+const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O, 1/I
+function chunk(n: number) {
+  const b = randomBytes(n);
+  return Array.from(b, (x) => ALPHABET[x % ALPHABET.length]).join('');
+}
+export const newCode = () => `VIS-${chunk(4)}-${chunk(4)}`;
+export const newToken = () => randomBytes(24).toString('base64url');
+export const normaliseCode = (c: string) => c.trim().toUpperCase().replace(/\s+/g, '');
+const safeName = (name: string) => name.replace(/[^\w.\- ]+/g, '_').slice(-120) || 'file';
+
+function codeProblem(c: AccessCode | null | undefined): string | null {
+  if (!c) return 'That code was not recognised. Check it and try again.';
+  if (c.uses >= c.maxUses) return 'That code has already been used.';
+  if (c.expiresAt && Date.parse(c.expiresAt) < Date.now()) return 'That code has expired.';
+  return null;
+}
+
+function blankWorkshop(tier: Tier, contact: Contact, code: string | null): PortalWorkshop {
+  const now = new Date().toISOString();
+  return {
+    id: randomUUID(),
+    token: newToken(),
+    tier,
+    status: 'intake',
+    clientName: contact.clientName,
+    contactName: contact.contactName,
+    contactEmail: contact.contactEmail,
+    intake: { company: contact.clientName },
+    intakeDone: false,
+    driveFolderUrl: '',
+    teamNotes: '',
+    code,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+// ---------- local (JSON file + .data/files) ----------
+
+interface LocalDb {
+  workshops: PortalWorkshop[];
+  codes: AccessCode[];
+  files: WorkshopFile[];
+}
+
+const DATA_DIR = join(process.cwd(), '.data');
+const DB_FILE = join(DATA_DIR, 'portal.json');
+const FILES_DIR = join(DATA_DIR, 'files');
+
+// Serialise writes so two quick requests can't clobber each other
+let queue: Promise<unknown> = Promise.resolve();
+function serial<T>(fn: () => Promise<T>): Promise<T> {
+  const next = queue.then(fn, fn);
+  queue = next.catch(() => undefined);
+  return next;
+}
+
+async function load(): Promise<LocalDb> {
+  try {
+    return JSON.parse(await readFile(DB_FILE, 'utf8')) as LocalDb;
+  } catch {
+    return { workshops: [], codes: [], files: [] };
+  }
+}
+async function save(db: LocalDb) {
+  await mkdir(DATA_DIR, { recursive: true });
+  const tmp = `${DB_FILE}.tmp`;
+  await writeFile(tmp, JSON.stringify(db, null, 2));
+  await rename(tmp, DB_FILE);
+}
+
+const localStore: PortalStore = {
+  createCode: (c) =>
+    serial(async () => {
+      const db = await load();
+      const code: AccessCode = { ...c, code: newCode(), uses: 0, createdAt: new Date().toISOString() };
+      db.codes.unshift(code);
+      await save(db);
+      return code;
+    }),
+  listCodes: async () => (await load()).codes,
+  redeemCode: (raw, contact) =>
+    serial(async () => {
+      const db = await load();
+      const c = db.codes.find((x) => x.code === normaliseCode(raw));
+      const problem = codeProblem(c);
+      if (problem || !c) return { error: problem ?? 'Unknown code.' };
+      c.uses += 1;
+      const w = blankWorkshop(c.tier, contact, c.code);
+      db.workshops.unshift(w);
+      await save(db);
+      return { workshop: w };
+    }),
+  getByToken: async (token) => (await load()).workshops.find((w) => w.token === token) ?? null,
+  getById: async (id) => (await load()).workshops.find((w) => w.id === id) ?? null,
+  listWorkshops: async () => (await load()).workshops,
+  updateWorkshop: (id, patch) =>
+    serial(async () => {
+      const db = await load();
+      const w = db.workshops.find((x) => x.id === id);
+      if (!w) return null;
+      Object.assign(w, patch, { id: w.id, token: w.token, updatedAt: new Date().toISOString() });
+      await save(db);
+      return w;
+    }),
+  uploadTarget: async (workshopId, name) => ({ kind: 'local', path: `${workshopId}/${randomUUID()}-${safeName(name)}` }),
+  writeLocal: async (path, bytes) => {
+    const full = join(FILES_DIR, path);
+    if (!full.startsWith(FILES_DIR + '/')) throw new Error('bad path');
+    await mkdir(dirname(full), { recursive: true });
+    await writeFile(full, bytes);
+  },
+  addFile: (f) =>
+    serial(async () => {
+      const db = await load();
+      const file: WorkshopFile = { ...f, id: randomUUID(), createdAt: new Date().toISOString() };
+      db.files.unshift(file);
+      await save(db);
+      return file;
+    }),
+  listFiles: async (workshopId) => (await load()).files.filter((f) => f.workshopId === workshopId),
+  getFile: async (id) => (await load()).files.find((f) => f.id === id) ?? null,
+  download: async (f) => ({ bytes: new Uint8Array(await readFile(join(FILES_DIR, f.path))) }),
+  deleteFile: (id) =>
+    serial(async () => {
+      const db = await load();
+      const f = db.files.find((x) => x.id === id);
+      if (!f) return;
+      db.files = db.files.filter((x) => x.id !== id);
+      await save(db);
+      await rm(join(FILES_DIR, f.path), { force: true });
+    }),
+};
+
+// ---------- supabase ----------
+
+const rowToWorkshop = (r: Record<string, any>): PortalWorkshop => ({
+  id: r.id,
+  token: r.token,
+  tier: r.tier,
+  status: r.status,
+  clientName: r.client_name,
+  contactName: r.contact_name,
+  contactEmail: r.contact_email,
+  intake: r.intake ?? {},
+  intakeDone: r.intake_done,
+  driveFolderUrl: r.drive_folder_url ?? '',
+  teamNotes: r.team_notes ?? '',
+  code: r.code,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
+});
+const workshopToRow = (w: Partial<PortalWorkshop>) => {
+  const map: Record<string, string> = {
+    tier: 'tier', status: 'status', clientName: 'client_name', contactName: 'contact_name',
+    contactEmail: 'contact_email', intake: 'intake', intakeDone: 'intake_done',
+    driveFolderUrl: 'drive_folder_url', teamNotes: 'team_notes',
+  };
+  const row: Record<string, unknown> = {};
+  for (const [k, col] of Object.entries(map)) if (k in w) row[col] = (w as Record<string, unknown>)[k];
+  return row;
+};
+const rowToCode = (r: Record<string, any>): AccessCode => ({
+  code: r.code, tier: r.tier, label: r.label ?? '', maxUses: r.max_uses, uses: r.uses,
+  expiresAt: r.expires_at, createdBy: r.created_by ?? '', createdAt: r.created_at,
+});
+const rowToFile = (r: Record<string, any>): WorkshopFile => ({
+  id: r.id, workshopId: r.workshop_id, name: r.name, size: r.size, type: r.type ?? '',
+  path: r.path, uploadedBy: r.uploaded_by, createdAt: r.created_at,
+});
+
+function supabaseStore(db: SupabaseClient): PortalStore {
+  // Throw on a Supabase error; maybeSingle() lookups use `found` below, everything else must return data
+  // Untyped client (no generated DB types), so rows come back as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const must = (res: { data: any; error: unknown }): any => {
+    if (res.error) throw res.error;
+    if (res.data === null) throw new Error('Supabase returned no data');
+    return res.data;
+  };
+  const found = <T>(res: { data: T | null; error: unknown }): T | null => {
+    if (res.error) throw res.error;
+    return res.data;
+  };
+  return {
+    async createCode(c) {
+      const row = must(await db.from('portal_codes').insert({
+        code: newCode(), tier: c.tier, label: c.label, max_uses: c.maxUses,
+        expires_at: c.expiresAt, created_by: c.createdBy,
+      }).select().single());
+      return rowToCode(row);
+    },
+    async listCodes() {
+      return must(await db.from('portal_codes').select('*').order('created_at', { ascending: false })).map(rowToCode);
+    },
+    async redeemCode(raw, contact) {
+      const codeStr = normaliseCode(raw);
+      const hit = found(await db.from('portal_codes').select('*').eq('code', codeStr).maybeSingle());
+      const c = hit ? rowToCode(hit) : null;
+      const problem = codeProblem(c);
+      if (problem || !c) return { error: problem ?? 'Unknown code.' };
+      // Only count the use if nobody else used it in the meantime
+      const claimed = must(await db.from('portal_codes').update({ uses: c.uses + 1 })
+        .eq('code', codeStr).eq('uses', c.uses).select());
+      if (!claimed.length) return { error: 'That code has just been used. Try again or contact us.' };
+      const w = blankWorkshop(c.tier, contact, c.code);
+      const row = must(await db.from('portal_workshops').insert({
+        id: w.id, token: w.token, code: w.code, ...workshopToRow(w),
+      }).select().single());
+      return { workshop: rowToWorkshop(row) };
+    },
+    async getByToken(token) {
+      const r = found(await db.from('portal_workshops').select('*').eq('token', token).maybeSingle());
+      return r ? rowToWorkshop(r) : null;
+    },
+    async getById(id) {
+      const r = found(await db.from('portal_workshops').select('*').eq('id', id).maybeSingle());
+      return r ? rowToWorkshop(r) : null;
+    },
+    async listWorkshops() {
+      return must(await db.from('portal_workshops').select('*').order('created_at', { ascending: false })).map(rowToWorkshop);
+    },
+    async updateWorkshop(id, patch) {
+      const r = found(await db.from('portal_workshops')
+        .update({ ...workshopToRow(patch), updated_at: new Date().toISOString() })
+        .eq('id', id).select().maybeSingle());
+      return r ? rowToWorkshop(r) : null;
+    },
+    async uploadTarget(workshopId, name) {
+      const path = `${workshopId}/${randomUUID()}-${safeName(name)}`;
+      const { signedUrl } = must(await db.storage.from(BUCKET).createSignedUploadUrl(path));
+      return { kind: 'supabase', path, signedUrl };
+    },
+    async writeLocal() {
+      throw new Error('Uploads go straight to Supabase Storage');
+    },
+    async addFile(f) {
+      const row = must(await db.from('portal_files').insert({
+        workshop_id: f.workshopId, name: f.name, size: f.size, type: f.type, path: f.path, uploaded_by: f.uploadedBy,
+      }).select().single());
+      return rowToFile(row);
+    },
+    async listFiles(workshopId) {
+      return must(await db.from('portal_files').select('*').eq('workshop_id', workshopId)
+        .order('created_at', { ascending: false })).map(rowToFile);
+    },
+    async getFile(id) {
+      const r = found(await db.from('portal_files').select('*').eq('id', id).maybeSingle());
+      return r ? rowToFile(r) : null;
+    },
+    async download(f) {
+      const { signedUrl } = must(await db.storage.from(BUCKET).createSignedUrl(f.path, 120, { download: f.name }));
+      return { url: signedUrl };
+    },
+    async deleteFile(id) {
+      const f = await this.getFile(id);
+      if (!f) return;
+      await db.storage.from(BUCKET).remove([f.path]);
+      must(await db.from('portal_files').delete().eq('id', id));
+    },
+  };
+}
+
+let store: PortalStore | null = null;
+export function portalStore(): PortalStore {
+  if (store) return store;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  store = url && key ? supabaseStore(createClient(url, key, { auth: { persistSession: false } })) : localStore;
+  return store;
+}
+
+export const usingSupabase = () => Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);

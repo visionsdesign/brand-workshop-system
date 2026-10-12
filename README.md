@@ -4,6 +4,21 @@ A live, shareable version of the Brand DNA Workshop. The facilitator drives the 
 
 The slides are rebuilt from Dom's Figma master (`dKi1IANLZvTn2ooxYH1o9d`) and keep its layout, type and backgrounds.
 
+## Client portal (paid workshops)
+
+| Page | What it does |
+|---|---|
+| `/` | Public landing page: Guided or Self-serve, and the code form |
+| `/start/<token>` | The client's private workshop page: intake, file uploads, then booking (guided) or the self-serve workshop |
+| `/team` | Team dashboard: every workshop, its intake and files, status, Drive folder and notes |
+| `/team/codes` | Create access codes for clients who pay by invoice (`VIS-XXXX-XXXX`) |
+
+Team sign-in is an emailed magic link for `@visionsdesign.co.uk` addresses once Supabase is set up. Locally, without Supabase, it is your work email plus the facilitator PIN. A team sign-in also opens every facilitator view without the PIN.
+
+Without Supabase, portal data and uploads are kept in `.data/` on this machine (not in git). With Supabase they live in the `portal_*` tables and the private `workshop-files` storage bucket; uploads go straight from the browser to storage, so large files never pass through Netlify.
+
+Coming next: self-serve answering (typed, voice notes, and an AI-guided mode), Stripe checkout, Cal.com booking, and Google Drive file listing.
+
 ## Links per client
 
 | Who | Link |

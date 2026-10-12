@@ -112,9 +112,10 @@ a { color: inherit; }
   border: 1px solid var(--ui-line-strong);
   background: rgba(255, 255, 255, 0.04);
   color: var(--ui-fg);
-  font-size: 18px;
-  letter-spacing: 0.3em;
+  font-size: 16px;
 }
+/* Spread out PIN digits only; emails read normally */
+.gate-card input[type='password'] { font-size: 18px; letter-spacing: 0.3em; }
 .gate-card .error { color: #ff6b61; margin: 10px 0 0; font-size: 13px; }
 
 /* ---------- buttons ---------- */
