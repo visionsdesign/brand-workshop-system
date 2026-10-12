@@ -6,6 +6,7 @@ import { portalStore } from '@/lib/portal/store';
 import { requireTeam } from '@/lib/portal/team';
 import { STATUS_LABEL, TIER_LABEL } from '@/lib/portal/types';
 import { TeamShell } from '../../TeamShell';
+import { DriveFiles } from './DriveFiles';
 import { TeamAnswers } from './TeamAnswers';
 import { WorkshopForm } from './WorkshopForm';
 
@@ -65,12 +66,14 @@ export default async function TeamWorkshop({ params }: { params: Promise<{ id: s
           <section className="tm-card">
             <h2>Files</h2>
             <Uploader workshopId={w.id} files={files} />
-            {w.driveFolderUrl && (
-              <p className="tm-drive">
-                Google Drive: <a href={w.driveFolderUrl} target="_blank" rel="noreferrer">open folder ↗</a>
-              </p>
-            )}
           </section>
+
+          {w.driveFolderUrl && (
+            <section className="tm-card">
+              <h2>Google Drive</h2>
+              <DriveFiles workshopId={w.id} folderUrl={w.driveFolderUrl} />
+            </section>
+          )}
 
           <section className="tm-card">
             <h2>Workshop</h2>

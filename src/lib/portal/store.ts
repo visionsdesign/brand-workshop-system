@@ -53,6 +53,8 @@ export interface PortalStore {
   mergeAnswer(workshopId: string, slideId: string, patch: SlideAnswer): Promise<SelfServeAnswers>;
   uploadTarget(workshopId: string, name: string): Promise<UploadTarget>;
   writeLocal(path: string, bytes: Uint8Array): Promise<void>;
+  /** Server-side upload (e.g. a file imported from Google Drive); returns the storage path */
+  putFile(workshopId: string, name: string, bytes: Uint8Array, type: string): Promise<string>;
   addFile(f: Omit<WorkshopFile, 'id' | 'createdAt'>): Promise<WorkshopFile>;
   listFiles(workshopId: string): Promise<WorkshopFile[]>;
   getFile(id: string): Promise<WorkshopFile | null>;
@@ -208,6 +210,11 @@ const localStore: PortalStore = {
     if (!full.startsWith(FILES_DIR + '/')) throw new Error('bad path');
     await mkdir(dirname(full), { recursive: true });
     await writeFile(full, bytes);
+  },
+  putFile: async (workshopId, name, bytes) => {
+    const path = `${workshopId}/${randomUUID()}-${safeName(name)}`;
+    await localStore.writeLocal(path, bytes);
+    return path;
   },
   addFile: (f) =>
     serial(async () => {
@@ -376,6 +383,12 @@ function supabaseStore(db: SupabaseClient): PortalStore {
     },
     async writeLocal() {
       throw new Error('Uploads go straight to Supabase Storage');
+    },
+    async putFile(workshopId, name, bytes, type) {
+      const path = `${workshopId}/${randomUUID()}-${safeName(name)}`;
+      const { error } = await db.storage.from(BUCKET).upload(path, bytes, { contentType: type || 'application/octet-stream' });
+      if (error) throw error;
+      return path;
     },
     async addFile(f) {
       const row = must(await db.from('portal_files').insert({
