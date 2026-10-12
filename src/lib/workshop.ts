@@ -15,6 +15,8 @@ export interface RawWorkshop {
   overrides: Record<string, { action: 'include' | 'light' | 'skip'; reason: string }>;
   bespoke: { id: string; title: string; question: string; after: string }[];
   runningOrder: { name: string; slides: string; minutes: number }[];
+  /** Optional planned minutes per slide from client.md section 7 */
+  slideTimings?: Record<string, number>;
 }
 
 const fill = (s: string | undefined, brand: string) => s?.replaceAll('{{BRAND}}', brand);
@@ -63,6 +65,11 @@ export function buildWorkshop(raw: RawWorkshop): Workshop {
     // Dividers take no time; the block's minutes are shared across its live slides
     const timed = ids.filter((id) => id[0] !== 'D' && status(id) !== 'skip');
     timed.forEach((id) => minutesOf.set(id, b.minutes / Math.max(timed.length, 1)));
+    // Explicit slide timings win over the even split
+    ids.forEach((id) => {
+      const t = raw.slideTimings?.[id];
+      if (t !== undefined) minutesOf.set(id, t);
+    });
     return { name: b.name, minutes: b.minutes, ids };
   });
 

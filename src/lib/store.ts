@@ -49,6 +49,10 @@ const memoryStore: Store = {
       case 'marker':
         s.events.push({ kind: 'marker', slideId: action.slideId, note: action.note ?? null, at: now });
         break;
+      case 'reset':
+        st.recordingStartedAt = null;
+        s.events = st.current ? [{ kind: 'slide', slideId: st.current, at: now }] : [];
+        break;
     }
     st.rev = Date.now();
     s.state = st;
@@ -129,6 +133,14 @@ function supabaseStore(db: SupabaseClient): Store {
         case 'marker':
           await event(slug, { kind: 'marker', slideId: action.slideId, note: action.note });
           break;
+        case 'reset': {
+          const cur = await read(slug);
+          const { error } = await db.from('workshop_events').delete().eq('slug', slug);
+          if (error) throw error;
+          await upsertSession(slug, { recording_started_at: null });
+          if (cur.current) await event(slug, { kind: 'slide', slideId: cur.current });
+          break;
+        }
       }
       return read(slug);
     },

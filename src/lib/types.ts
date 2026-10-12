@@ -109,7 +109,9 @@ export type SessionAction =
   | { type: 'answer'; key: string; value: unknown }
   | { type: 'override'; slideId: string; status: SlideStatus | null }
   | { type: 'recording'; start: boolean }
-  | { type: 'marker'; slideId: string; note?: string };
+  | { type: 'marker'; slideId: string; note?: string }
+  /** Clears the timeline and recording clock; timing restarts from the current slide */
+  | { type: 'reset' };
 
 export interface TimelineEvent {
   kind: 'slide' | 'marker' | 'recording';

@@ -75,6 +75,14 @@ Default is every registry slide included. List changes only.
 |---|---|---|
 | | | |
 
+### Slide timings (optional)
+
+Minutes per slide, used for the facilitator's on-track clock. Leave empty to split each block's minutes evenly across its slides. Dividers take no time.
+
+| Slide | Minutes | Why |
+|---|---|---|
+| | | |
+
 ## 8. Sources
 
 List what's in `sources/` and anything still to come.

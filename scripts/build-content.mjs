@@ -123,11 +123,23 @@ function parseClient(md, slug) {
     }
   }
 
-  const runningOrder = s7
-    ? tableRows(s7.body)
-        .filter((r) => clean(r[0]) && !/^total$/i.test(clean(r[0])))
-        .map((r) => ({ name: clean(r[0]), slides: clean(r[1]), minutes: Number(clean(r[2])) || 0 }))
-    : [];
+  const [orderPart = '', timingsPart = ''] = s7 ? s7.body.split(/^###\s+Slide timings.*$/im) : [];
+  const runningOrder = tableRows(orderPart)
+    .filter((r) => clean(r[0]) && !/^total$/i.test(clean(r[0])))
+    .map((r) => ({ name: clean(r[0]), slides: clean(r[1]), minutes: Number(clean(r[2])) || 0 }));
+
+  // Optional per-slide minutes; without them each block's minutes are split evenly
+  const slideTimings = {};
+  for (const r of tableRows(timingsPart)) {
+    const id = clean(r[0]).toUpperCase();
+    const mins = Number(clean(r[1]));
+    if (/^[A-Z]\d{2}$/.test(id) && Number.isFinite(mins)) slideTimings[id] = mins;
+  }
+  const timed = Object.values(slideTimings).reduce((a, b) => a + b, 0);
+  const planned = runningOrder.reduce((a, b) => a + b.minutes, 0);
+  if (timed && timed !== planned) {
+    warn(slug, `Slide timings add up to ${timed} min but the running order is ${planned} min.`);
+  }
 
   return {
     slug,
@@ -141,6 +153,7 @@ function parseClient(md, slug) {
     overrides,
     bespoke,
     runningOrder,
+    slideTimings,
   };
 }
 

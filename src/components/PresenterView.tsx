@@ -103,6 +103,32 @@ export function PresenterView({ workshop: w, notes, initial, initialEvents }: Pr
   const sessionStart = state.recordingStartedAt ? Date.parse(state.recordingStartedAt) : events[0] ? Date.parse(events[0].at) : null;
   const plannedTotal = w.blocks.reduce((a, b) => a + b.minutes, 0);
 
+  // Planned start of every live slide (skips change live, so this follows them)
+  const plannedStart = useMemo(() => {
+    const m = new Map<string, number>();
+    let t = 0;
+    for (const s of w.slides) {
+      if (statusOf(s) === 'skip') continue;
+      m.set(s.id, t);
+      t += s.minutes ?? 0;
+    }
+    return m;
+  }, [w.slides, statusOf]);
+  const elapsed = sessionStart && now ? now - sessionStart : 0;
+  const schedule = (() => {
+    if (!sessionStart || !slide.minutes && !plannedStart.get(slide.id)) return null;
+    const start = (plannedStart.get(slide.id) ?? 0) * 60000;
+    const end = start + (slide.minutes ?? 0) * 60000;
+    if (elapsed > end + 30000) return { kind: 'behind' as const, ms: elapsed - end, start, end };
+    if (elapsed < start - 30000) return { kind: 'ahead' as const, ms: start - elapsed, start, end };
+    return { kind: 'on' as const, ms: 0, start, end };
+  })();
+  const scheduleLabel = schedule
+    ? schedule.kind === 'on'
+      ? 'On track'
+      : `${Math.max(1, Math.round(schedule.ms / 60000))}m ${schedule.kind}`
+    : null;
+
   const clientUrl = typeof window === 'undefined' ? `/w/${w.code}` : `${window.location.origin}/w/${w.code}`;
   const slideNotes = notes.slides[slide.id];
   const status = statusOf(slide);
@@ -129,6 +155,19 @@ export function PresenterView({ workshop: w, notes, initial, initialEvents }: Pr
           {sessionStart ? hms(now - sessionStart) : '00:00:00'}
           {plannedTotal ? ` / ${plannedTotal}m` : ''}
         </span>
+        {scheduleLabel && <span className={`pv-sched ${schedule?.kind}`}>{scheduleLabel}</span>}
+        <button
+          className="btn"
+          title="Restart the session timer from this slide. Clears the timeline so far."
+          onClick={() => {
+            if (!window.confirm('Reset the timer? The timeline recorded so far will be cleared.')) return;
+            act({ type: 'reset' });
+            setEvents(state.current ? [{ kind: 'slide', slideId: state.current, at: new Date().toISOString() }] : []);
+            flash('Timer reset');
+          }}
+        >
+          Reset timer
+        </button>
         <button
           className={`btn btn-rec ${state.recordingStartedAt ? 'is-on' : ''}`}
           onClick={() => act({ type: 'recording', start: !state.recordingStartedAt })}
@@ -165,6 +204,7 @@ export function PresenterView({ workshop: w, notes, initial, initialEvents }: Pr
                 >
                   <span className="pv-item-id">{s.id}</span>
                   <span className="pv-item-title" title={s.title}>{s.title}</span>
+                  <span className="pv-item-min">{st !== 'skip' && s.minutes ? `${Math.round(s.minutes)}m` : ''}</span>
                   {s.kind === 'divider' || s.kind === 'title' ? (
                     <span />
                   ) : (
@@ -246,6 +286,20 @@ export function PresenterView({ workshop: w, notes, initial, initialEvents }: Pr
                     <strong className={block && blockSpent > block.minutes * 60000 ? 'over' : ''}>
                       {block ? `${mmss(blockSpent)} / ${block.minutes}m` : '—'}
                     </strong>
+                  </div>
+                  <div className="pv-timing-wide">
+                    <span>Schedule</span>
+                    {schedule ? (
+                      <strong className={schedule.kind === 'behind' ? 'over' : schedule.kind === 'ahead' ? 'ahead' : ''}>
+                        {scheduleLabel} · this slide planned {hms(schedule.start).slice(0, 5)} to {hms(schedule.end).slice(0, 5)}
+                      </strong>
+                    ) : (
+                      <strong className="muted">
+                        {plannedStart.has(slide.id)
+                          ? `Planned at ${hms((plannedStart.get(slide.id) ?? 0) * 60000).slice(0, 5)}. Starts when you move off the title or start the recording clock.`
+                          : 'Not in the running order'}
+                      </strong>
+                    )}
                   </div>
                 </div>
 

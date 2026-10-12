@@ -77,13 +77,48 @@ Two-hour session, and tone of voice is deferred to a later phase, so Section 3 r
 
 | Block | Slides | Minutes |
 |---|---|---|
-| Welcome and objective | S00 | 5 |
+| Welcome and objective | S00, A01 | 5 |
 | Core DNA | D01, S01 to S04, B01, S05 to S11 | 45 |
 | Alignment & Audience | D02, S12 to S18 | 35 |
 | Narrative & Voice (light) | D03, S19, S20, S22, S24 | 10 |
 | Visual direction | B02, B03 | 20 |
 | Wrap-up | D04, S25 | 5 |
 | **Total** | | **120** |
+
+### Slide timings
+
+Rough minutes per slide, adding up to each block above. Weighted towards the two-entity Audience slides, the Onlyness statement and the visual direction slides in scope. X01 (break) is unplanned: skip it, or take it from Visual direction if the session runs long. S21 and S23 are skipped.
+
+| Slide | Minutes | Why |
+|---|---|---|
+| S00 | 2 | Introductions |
+| A01 | 3 | Objective and agenda |
+| S01 | 4 | |
+| S02 | 4 | |
+| S03 | 4 | |
+| S04 | 4 | |
+| B01 | 5 | Majed wants to walk through the phases |
+| S05 | 3 | |
+| S06 | 4 | Formula to validate |
+| S07 | 4 | |
+| S08 | 2 | Light |
+| S09 | 4 | |
+| S10 | 5 | Formula, and the "only" debate |
+| S11 | 2 | |
+| S12 | 6 | Two entities |
+| S13 | 6 | Two entities |
+| S14 | 5 | Two entities |
+| S15 | 5 | Light, but closes the commercial objectives gap |
+| S16 | 5 | Two entities |
+| S17 | 4 | Two entities |
+| S18 | 4 | |
+| S19 | 3 | |
+| S20 | 3 | Light: two contested scales |
+| S22 | 2 | |
+| S24 | 2 | |
+| B02 | 10 | In scope: the mark |
+| B03 | 10 | In scope: Arabic-first typography |
+| S25 | 5 | Next steps and sign-off |
 
 ## 8. Sources
 

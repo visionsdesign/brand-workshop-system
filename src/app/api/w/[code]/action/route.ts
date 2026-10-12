@@ -52,6 +52,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
       }
       break;
     case 'recording':
+    case 'reset':
       if (!facilitator) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
       break;
     default:

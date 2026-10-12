@@ -155,14 +155,14 @@
   font-weight: 300;
   font-style: italic;
   line-height: 1.15;
-  color: rgba(255, 0, 0, 0.55);
+  color: #fff;
 }
 .s-agenda-rows {
   position: absolute;
   left: 813px;
   top: 273px;
   width: 1077px;
-  color: #f00;
+  color: #fff;
   font-weight: 400;
   font-size: 24px;
   text-transform: uppercase;
