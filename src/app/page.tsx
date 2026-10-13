@@ -15,6 +15,13 @@ export const metadata = {
   robots: { index: true, follow: true },
 };
 
+const STATS = [
+  { value: '127', label: 'Workshops completed' },
+  { value: '100%', label: 'Happy customers' },
+  { value: '87%', label: 'Continue to work with us' },
+  { value: '10 years', label: 'Branding experience' },
+];
+
 const TIERS = [
   {
     id: 'guided' as Tier,
@@ -89,6 +96,18 @@ export default function Home() {
           </p>
         </div>
         <EnquiryForm />
+      </section>
+
+      <section className="pt-stats" aria-label="Visions in numbers">
+        <img className="pt-stats-bg" src="/img/bg-core.jpg" alt="" />
+        <dl>
+          {STATS.map((st) => (
+            <div key={st.label}>
+              <dt>{st.label}</dt>
+              <dd>{st.value}</dd>
+            </div>
+          ))}
+        </dl>
       </section>
 
       <section className="pt-redeem" id="code">
