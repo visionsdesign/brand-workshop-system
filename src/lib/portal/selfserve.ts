@@ -6,7 +6,7 @@ import { portalStore } from './store';
 import { isAnswered, partsFor } from './selfserve-client';
 import type { PortalWorkshop, WorkshopFile } from './types';
 
-export { HINTS, isAnswered, partsFor, slideAnswersView, valueKeys } from './selfserve-client';
+export { HINTS, isAnswered, partsFor, slideAnswersView, spokenQuestion, valueKeys } from './selfserve-client';
 
 // The self-serve workshop: the registry's question slides, answered by the
 // client in their own time. Titles, the agenda, dividers and the break are left

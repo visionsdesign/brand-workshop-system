@@ -20,13 +20,15 @@ interface Props {
   closed: boolean;
   /** The AI facilitator is switched on (server has a Claude API key) */
   aiEnabled: boolean;
+  /** ElevenLabs is configured: questions can be read aloud, the facilitator can speak */
+  voiceEnabled: boolean;
   submit: () => Promise<void>;
 }
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 /** The client works through the workshop alone: one slide at a time, typed or spoken answers, autosaved. */
-export function SelfServe({ token, workshopId, workshop, initialAnswers, initialNotes, submitted, closed, aiEnabled, submit }: Props) {
+export function SelfServe({ token, workshopId, workshop, initialAnswers, initialNotes, submitted, closed, aiEnabled, voiceEnabled, submit }: Props) {
   const slides = workshop.slides;
   const [answers, setAnswers] = useState(initialAnswers);
   const [notes, setNotes] = useState(initialNotes);
@@ -181,7 +183,10 @@ export function SelfServe({ token, workshopId, workshop, initialAnswers, initial
             />
           ) : (
             <>
-              <p className="ss-step">Question {index + 1} of {slides.length} · {slide.section}</p>
+              <div className="ss-step-row">
+                <p className="ss-step">Question {index + 1} of {slides.length} · {slide.section}</p>
+                {voiceEnabled && <ListenButton key={slide.id} token={token} slideId={slide.id} />}
+              </div>
               <div className="ss-slide">
                 <SlideFrame>
                   <Slide
@@ -213,6 +218,7 @@ export function SelfServe({ token, workshopId, workshop, initialAnswers, initial
                   initial={answers[slide.id]?.chat ?? []}
                   partLabels={partsFor(slide).map((p) => p.key)}
                   disabled={locked}
+                  voice={voiceEnabled}
                   onUseDraft={(d) => {
                     update(slide.id, { text: d.text, parts: Object.keys(d.parts).length ? d.parts : undefined }, true);
                     setFormVersion((v) => v + 1);
@@ -361,5 +367,31 @@ function Review({
         <button className="pt-btn" onClick={onSubmit} disabled={submitting}>{submitting ? 'Submitting…' : 'Submit to Visions'}</button>
       )}
     </div>
+  );
+}
+
+/** Plays the question in the workshop voice. The audio is generated once per question and cached. */
+function ListenButton({ token, slideId }: { token: string; slideId: string }) {
+  const audio = useRef<HTMLAudioElement | null>(null);
+  const [state, setState] = useState<'idle' | 'loading' | 'playing'>('idle');
+  useEffect(() => () => audio.current?.pause(), []);
+  function toggle() {
+    if (state !== 'idle') {
+      audio.current?.pause();
+      setState('idle');
+      return;
+    }
+    audio.current ??= new Audio(`/api/portal/speak/question?slideId=${slideId}&t=${encodeURIComponent(token)}`);
+    const a = audio.current;
+    a.onplaying = () => setState('playing');
+    a.onended = a.onerror = () => setState('idle');
+    setState('loading');
+    a.currentTime = 0;
+    a.play().catch(() => setState('idle'));
+  }
+  return (
+    <button type="button" className={`ss-listen ${state !== 'idle' ? 'is-on' : ''}`} onClick={toggle}>
+      {state === 'loading' ? 'Loading…' : state === 'playing' ? '■ Stop' : '▶ Listen to the question'}
+    </button>
   );
 }

@@ -4,6 +4,7 @@ import { SelfServe } from '@/components/portal/SelfServe';
 import { guideAvailable } from '@/lib/portal/guide';
 import { selfServeWorkshop } from '@/lib/portal/selfserve';
 import { portalStore } from '@/lib/portal/store';
+import { voiceConfigured } from '@/lib/portal/voice';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Your workshop · Visions Design', robots: { index: false, follow: false } };
@@ -36,6 +37,7 @@ export default async function SelfServePage({ params }: { params: Promise<{ toke
       submitted={Boolean(w.submittedAt)}
       closed={w.status === 'complete'}
       aiEnabled={guideAvailable()}
+      voiceEnabled={voiceConfigured()}
       submit={submit}
     />
   );

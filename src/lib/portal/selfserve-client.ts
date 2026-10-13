@@ -61,3 +61,20 @@ export function isAnswered(s: WorkshopSlide, a: SlideAnswer | undefined, voiceNo
   return false;
 }
 
+
+const strip = (t?: string) => (t ?? '').replace(/\*\*(.+?)\*\*|\(\((.+?)\)\)/g, '$1$2').replace(/\s*\n+\s*/g, ' ').trim();
+
+/** What gets read aloud for a question: the slide's own words, plus its parts, scales or options */
+export function spokenQuestion(s: WorkshopSlide): string {
+  const bits: string[] = [];
+  if (s.eyebrow) bits.push(`${s.eyebrow}.`);
+  if (s.question) bits.push(strip(s.question));
+  if (s.sub) bits.push(strip(s.sub));
+  s.cards?.forEach((c) => bits.push(`${c.title}: ${c.prompt}`));
+  s.tiers?.forEach((t) => bits.push(`${t.name}. ${t.prompt}`));
+  if (s.scales) bits.push(`For each pair, choose where your brand sits. ${s.scales.map(([l, r]) => `${l}, or ${r}`).join('. ')}.`);
+  s.groups?.forEach((g) => bits.push(g.q));
+  s.columns?.forEach((c) => bits.push(`${c.title}: ${c.desc.replace(/[()]/g, '')}`));
+  if (!bits.length) bits.push(s.title);
+  return bits.join(' ').replace(/\.\./g, '.');
+}

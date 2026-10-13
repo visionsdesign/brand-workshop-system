@@ -23,7 +23,9 @@ Without Supabase, portal data and uploads are kept in `.data/` on this machine (
 
 **Booking** (guided): once steps 1 and 2 are done, the Cal.com event in `CALCOM_LINK` appears in step 3 with the client's details and workshop ID attached. Cal.com's webhook (`/api/calcom/webhook`, signed with `CALCOM_WEBHOOK_SECRET`; triggers Booking created, rescheduled, cancelled) confirms it.
 
-Coming next: Google Drive file listing.
+**Voice (ElevenLabs)**, with `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` (Jude): self-serve questions have a Listen button (generated once per question and cached in storage under `tts/`), the AI facilitator has a voice mode that speaks its replies and lets the client answer out loud, and voice notes and spoken replies are transcribed by ElevenLabs Scribe, with the browser transcript as a fallback.
+
+**Google Drive**: with `GOOGLE_SERVICE_ACCOUNT_EMAIL` and `GOOGLE_PRIVATE_KEY`, the team page lists a workshop's linked Drive folder and can import files from it.
 
 ## Links per client
 

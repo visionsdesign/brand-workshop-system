@@ -598,3 +598,33 @@
   .pt-shared li { grid-template-columns: 1fr; gap: 2px; }
   .pt-session { padding: 22px; }
 }
+
+/* voice */
+.ss-step-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.ss-step-row .ss-step { margin: 0; }
+.ss-listen {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: none;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+.ss-listen:hover, .ss-listen.is-on { background: #fff; color: #000; }
+.ss-guide-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ss-voice-toggle {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(185, 208, 255, 0.4);
+  background: none;
+  color: #b9d0ff;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ss-voice-toggle.is-on { background: #b9d0ff; color: #000; }
+.ss-replay { display: block; margin-top: 6px; padding: 0; border: 0; background: none; color: rgba(255, 255, 255, 0.5); font-size: 12px; cursor: pointer; }
+.ss-replay:hover { color: #fff; }
+.ss-talking { gap: 8px; }

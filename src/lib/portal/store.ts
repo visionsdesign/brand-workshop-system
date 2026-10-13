@@ -53,6 +53,10 @@ export interface PortalStore {
   mergeAnswer(workshopId: string, slideId: string, patch: SlideAnswer): Promise<SelfServeAnswers>;
   uploadTarget(workshopId: string, name: string): Promise<UploadTarget>;
   writeLocal(path: string, bytes: Uint8Array): Promise<void>;
+  /** Read a stored blob by path (generated audio cache, voice notes); null if missing */
+  readBlob(path: string): Promise<Uint8Array | null>;
+  /** Write a blob at an exact path, replacing anything there */
+  writeBlob(path: string, bytes: Uint8Array, type: string): Promise<void>;
   /** Server-side upload (e.g. a file imported from Google Drive); returns the storage path */
   putFile(workshopId: string, name: string, bytes: Uint8Array, type: string): Promise<string>;
   addFile(f: Omit<WorkshopFile, 'id' | 'createdAt'>): Promise<WorkshopFile>;
@@ -210,6 +214,17 @@ const localStore: PortalStore = {
     if (!full.startsWith(FILES_DIR + '/')) throw new Error('bad path');
     await mkdir(dirname(full), { recursive: true });
     await writeFile(full, bytes);
+  },
+  readBlob: async (path) => {
+    try {
+      return new Uint8Array(await readFile(join(FILES_DIR, path)));
+    } catch {
+      return null;
+    }
+  },
+  writeBlob: async (path, bytes) => {
+    if (path.includes('..')) throw new Error('bad path');
+    await localStore.writeLocal(path, bytes);
   },
   putFile: async (workshopId, name, bytes) => {
     const path = `${workshopId}/${randomUUID()}-${safeName(name)}`;
@@ -383,6 +398,15 @@ function supabaseStore(db: SupabaseClient): PortalStore {
     },
     async writeLocal() {
       throw new Error('Uploads go straight to Supabase Storage');
+    },
+    async readBlob(path) {
+      const { data, error } = await db.storage.from(BUCKET).download(path);
+      if (error || !data) return null;
+      return new Uint8Array(await data.arrayBuffer());
+    },
+    async writeBlob(path, bytes, type) {
+      const { error } = await db.storage.from(BUCKET).upload(path, bytes, { contentType: type, upsert: true });
+      if (error) throw error;
     },
     async putFile(workshopId, name, bytes, type) {
       const path = `${workshopId}/${randomUUID()}-${safeName(name)}`;
