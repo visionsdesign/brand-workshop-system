@@ -53,14 +53,16 @@ export default function Home() {
   return (
     <main className="pt">
       <section className="pt-hero">
-        <img className="pt-hero-bg" src="/img/bg-title.jpg" alt="" />
+        {/* Two gradients that slowly drift and fade into each other (still for reduced motion) */}
+        <img className="pt-hero-bg pt-bg-drift" src="/img/web/bg-title.jpg" alt="" />
+        <img className="pt-hero-bg pt-bg-drift pt-bg-fade" src="/img/web/bg-voice.jpg" alt="" />
         <header className="pt-bar">
           <span>Visions Design</span>
           <Link href="/team">Team sign in</Link>
         </header>
         <div className="pt-hero-copy">
           <p className="pt-eyebrow">Brand workshop</p>
-          <h1>Find the DNA of your brand.</h1>
+          <h1>Find the DNA of <br className="pt-br-wide" />your&nbsp;brand.</h1>
           <p className="pt-lede">
             The same workshop we run with every Visions client: your story, your audience, your voice, and where the brand
             goes next. Run it with our team, or on your own.
@@ -99,7 +101,8 @@ export default function Home() {
       </section>
 
       <section className="pt-stats" aria-label="Visions in numbers">
-        <img className="pt-stats-bg" src="/img/bg-core.jpg" alt="" />
+        <img className="pt-stats-bg pt-bg-drift" src="/img/web/bg-core.jpg" alt="" loading="lazy" />
+        <img className="pt-stats-bg pt-bg-drift pt-bg-fade" src="/img/web/bg-align.jpg" alt="" loading="lazy" />
         <dl>
           {STATS.map((st) => (
             <div key={st.label}>

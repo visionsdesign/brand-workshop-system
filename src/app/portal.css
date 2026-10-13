@@ -38,6 +38,8 @@
   margin: auto 16px 56px;
   max-width: 900px;
 }
+.pt-br-wide { display: none; }
+@media (min-width: 861px) { .pt-br-wide { display: inline; } }
 .pt-eyebrow { margin: 0 0 16px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
 .pt-hero h1,
 .pt-title {
@@ -90,6 +92,20 @@
 .pt-redeem h2 { margin: 0 0 12px; font-weight: 300; font-size: 34px; letter-spacing: -0.02em; }
 .pt-redeem p { margin: 0; color: rgba(255, 255, 255, 0.62); max-width: 420px; }
 
+.pt-bg-drift { transform-origin: 50% 50%; will-change: transform; animation: pt-drift 45s ease-in-out infinite alternate; }
+.pt-bg-fade { opacity: 0; will-change: opacity, transform; animation: pt-drift 55s ease-in-out infinite alternate-reverse, pt-fade 30s ease-in-out infinite alternate; }
+@keyframes pt-drift {
+  from { transform: scale(1.08) translate3d(-2%, -1.5%, 0); }
+  to { transform: scale(1.18) translate3d(2%, 1.5%, 0); }
+}
+@keyframes pt-fade {
+  0%, 15% { opacity: 0; }
+  85%, 100% { opacity: 0.9; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pt-bg-drift { animation: none; transform: none; }
+  .pt-bg-fade { display: none; }
+}
 .pt-stats { position: relative; overflow: hidden; margin: 24px 0 0; padding: 72px 16px; }
 .pt-stats-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .pt-stats dl { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; max-width: 1200px; margin: 0 auto; }
