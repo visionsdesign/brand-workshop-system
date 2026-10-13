@@ -16,10 +16,10 @@ export const metadata = {
 };
 
 const STATS = [
-  { value: '127', label: 'Workshops completed' },
-  { value: '100%', label: 'Happy customers' },
-  { value: '87%', label: 'Continue to work with us' },
-  { value: '10 years', label: 'Branding experience' },
+  { value: '127', label: ['Workshops', 'completed'] },
+  { value: '100%', label: ['Happy', 'customers'] },
+  { value: '87%', label: ['Continue to', 'work with us'] },
+  { value: '10 years', label: ['Branding', 'experience'] },
 ];
 
 const TIERS = [
@@ -101,12 +101,14 @@ export default function Home() {
       </section>
 
       <section className="pt-stats" aria-label="Visions in numbers">
-        <img className="pt-stats-bg pt-bg-drift" src="/img/web/bg-core.jpg" alt="" loading="lazy" />
-        <img className="pt-stats-bg pt-bg-drift pt-bg-fade" src="/img/web/bg-align.jpg" alt="" loading="lazy" />
+        {/* The hero's gradients, zoomed in so the band shows the same broad colour, not the whole image squeezed in */}
+        <img className="pt-stats-bg pt-bg-drift" src="/img/web/bg-title.jpg" alt="" loading="lazy" />
+        <img className="pt-stats-bg pt-bg-drift pt-bg-fade" src="/img/web/bg-voice.jpg" alt="" loading="lazy" />
         <dl>
           {STATS.map((st) => (
-            <div key={st.label}>
-              <dt>{st.label}</dt>
+            <div key={st.value}>
+              {/* Two lines on mobile, one on wider screens */}
+              <dt>{st.label[0]}<br className="pt-br-narrow" /> {st.label[1]}</dt>
               <dd>{st.value}</dd>
             </div>
           ))}
