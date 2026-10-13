@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { canBuy, CREDIT_LINE, priceLabel } from '@/lib/portal/payments';
+import { REGISTRY } from '@/lib/registry';
+import { aboutTime, SLIDE_IDS, totalMinutes } from '@/lib/portal/selfserve';
 import type { Tier } from '@/lib/portal/types';
 import { RedeemForm } from './redeem/RedeemForm';
 import { ViviBubble } from '@/components/portal/ViviBubble';
@@ -31,8 +33,8 @@ const TIERS = [
     name: 'Self-serve workshop',
     lead: 'Work through the same workshop at your own pace.',
     points: [
-      'Answer each question by typing or voice note',
-      'Save and come back whenever you like',
+      'Type each answer, or talk it through with our AI facilitator',
+      `Allow at least ${aboutTime(totalMinutes(REGISTRY.filter((s) => SLIDE_IDS.has(s.id)))).replace('about ', '')}, over as many sittings as you like`,
       'Our team reviews every answer',
       'Your Brand DNA summary afterwards',
     ],

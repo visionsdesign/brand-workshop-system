@@ -6,9 +6,11 @@ import type { SlideDef } from './types';
  * filled from client.md at render time ({{BRAND}} is replaced with the client name).
  *
  * IDs match the slide registry in DESIGN.md §5. A01 (agenda), X01 (break) and
- * D04 (wrap-up divider) were added to match the Figma file.
+ * D04 (wrap-up divider) were added to match the Figma file. O01 to O03
+ * (opening questions) were moved here from the client intake and have no Figma frame.
  */
 
+const OPENING = 'Setting the Scene';
 const CORE = 'The Core DNA';
 const AUDIENCE = 'Alignment & Audience';
 const VOICE = 'Narrative & Voice';
@@ -24,6 +26,23 @@ export const SECTION_TOPICS: Record<string, string[]> = {
 export const REGISTRY: SlideDef[] = [
   { id: 'S00', kind: 'title', theme: 'gradient', bg: 'bg-title.jpg', title: 'Title', label: 'Brand workshop', section: '', figmaNode: '131:157' },
   { id: 'A01', kind: 'agenda', theme: 'dark', title: 'Workshop Agenda', label: 'Contents', section: '', figmaNode: '131:189' },
+
+  // ---- Opening: setting the scene (moved here from the intake) ----
+  {
+    id: 'O01', kind: 'question', theme: 'dark', title: 'Setting the Scene: Where You Are Today', label: 'Opening', section: OPENING, eyebrow: 'Where You Are Today',
+    question: 'Where is **{{BRAND}}** today?',
+    sub: 'New venture, established, repositioning, merging…',
+  },
+  {
+    id: 'O02', kind: 'question', theme: 'dark', title: 'Setting the Scene: Why Now', label: 'Opening', section: OPENING, eyebrow: 'Why Now',
+    question: 'Why a brand workshop **now?**',
+    sub: 'What has changed, or what is not working?',
+  },
+  {
+    id: 'O03', kind: 'question', theme: 'dark', title: 'Setting the Scene: Your Customers', label: 'Opening', section: OPENING, eyebrow: 'Your Customers',
+    question: 'Who are your **customers?**',
+    sub: 'If you sell to more than one group, name each one.',
+  },
 
   // ---- Section 1 ----
   { id: 'D01', kind: 'divider', theme: 'gradient', bg: 'bg-core.jpg', title: CORE, label: CORE, section: CORE, figmaNode: '131:165' },

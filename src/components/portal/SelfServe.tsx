@@ -2,13 +2,12 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { HINTS, isAnswered, partsFor, slideAnswersView } from '@/lib/portal/selfserve-client';
+import { aboutTime, HINTS, isAnswered, minutesFor, partsFor, slideAnswersView, totalMinutes } from '@/lib/portal/selfserve-client';
 import type { SelfServeAnswers, SlideAnswer, WorkshopFile } from '@/lib/portal/types';
 import type { Workshop, WorkshopSlide } from '@/lib/types';
 import { Slide } from '../Slide';
 import { SlideFrame } from '../SlideFrame';
 import { GuideChat } from './GuideChat';
-import { VoiceNotes } from './VoiceNotes';
 
 interface Props {
   token: string;
@@ -16,6 +15,7 @@ interface Props {
   workshop: Workshop;
   initialAnswers: SelfServeAnswers;
   initialNotes: WorkshopFile[];
+  contactEmail: string;
   submitted: boolean;
   closed: boolean;
   /** The AI facilitator is switched on (server has a Claude API key) */
@@ -28,10 +28,10 @@ interface Props {
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 /** The client works through the workshop alone: one slide at a time, typed or spoken answers, autosaved. */
-export function SelfServe({ token, workshopId, workshop, initialAnswers, initialNotes, submitted, closed, aiEnabled, voiceEnabled, submit }: Props) {
+export function SelfServe({ token, workshopId, workshop, initialAnswers, initialNotes, contactEmail, submitted, closed, aiEnabled, voiceEnabled, submit }: Props) {
   const slides = workshop.slides;
   const [answers, setAnswers] = useState(initialAnswers);
-  const [notes, setNotes] = useState(initialNotes);
+  const [notes] = useState(initialNotes); // older voice notes still count towards answered questions
   const [index, setIndex] = useState(0);
   const [review, setReview] = useState(false);
   const [save, setSave] = useState<SaveState>('idle');
@@ -43,14 +43,18 @@ export function SelfServe({ token, workshopId, workshop, initialAnswers, initial
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const storeKey = `ss-pos-${workshopId}`;
 
-  // Resume where they left off: saved position, else the first unanswered slide
+  // Resume where they left off: the question they were on (this device), else the first unanswered one
+  const [welcomeBack, setWelcomeBack] = useState(false);
   useEffect(() => {
     let start = slides.findIndex((s) => !isAnswered(s, initialAnswers[s.id], initialNotes.filter((n) => n.slideId === s.id).length));
     try {
       const saved = Number(localStorage.getItem(storeKey));
-      if (Number.isInteger(saved) && saved >= 0 && saved < slides.length) start = saved;
+      if (localStorage.getItem(storeKey) !== null && Number.isInteger(saved) && saved >= 0 && saved < slides.length) start = saved;
     } catch { /* storage unavailable */ }
     setIndex(Math.max(0, start));
+    // A finished workshop opens on its completion screen
+    if (submitted || closed) setReview(true);
+    setWelcomeBack(!submitted && !closed && slides.some((s) => isAnswered(s, initialAnswers[s.id], initialNotes.filter((n) => n.slideId === s.id).length)));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -121,6 +125,7 @@ export function SelfServe({ token, workshopId, workshop, initialAnswers, initial
       flush(current.id);
     }
     setReview(false);
+    setWelcomeBack(false);
     setIndex(Math.min(slides.length - 1, Math.max(0, i)));
   };
 
@@ -129,17 +134,30 @@ export function SelfServe({ token, workshopId, workshop, initialAnswers, initial
     [slides, answers, notes],
   );
   const answeredCount = answeredFlags.filter(Boolean).length;
+  const firstOpen = answeredFlags.findIndex((a) => !a);
+  const percent = Math.round((answeredCount / slides.length) * 100);
+  const minutesLeft = totalMinutes(slides.filter((_, i) => !answeredFlags[i]));
+  // The sidebar, grouped by workshop section, each with its own count
+  const sections = useMemo(() => {
+    const groups: { name: string; items: number[] }[] = [];
+    slides.forEach((s, i) => {
+      const last = groups.at(-1);
+      if (last && last.name === s.section) last.items.push(i);
+      else groups.push({ name: s.section || 'Wrap-Up', items: [i] });
+    });
+    return groups;
+  }, [slides]);
   const slide = slides[index];
-  const locked = closed;
+  const locked = closed || isSubmitted;
 
   return (
     <div className="ss">
       <header className="ss-top">
         <Link href={`/start/${token}`} className="ss-back">← Workshop page</Link>
-        <div className="ss-progress" aria-label={`${answeredCount} of ${slides.length} answered`}>
-          <span style={{ width: `${(answeredCount / slides.length) * 100}%` }} />
+        <div className="ss-progress" role="progressbar" aria-valuemin={0} aria-valuemax={slides.length} aria-valuenow={answeredCount} aria-label="Questions answered">
+          <span style={{ width: `${percent}%` }} />
         </div>
-        <span className="ss-count">{answeredCount} of {slides.length}</span>
+        <span className="ss-count"><strong>{answeredCount} of {slides.length}</strong> answered · {percent}%{minutesLeft && !locked ? ` · ${aboutTime(minutesLeft)} left` : ''}</span>
         <span className={`ss-save s-${save}`}>
           {save === 'saving' ? 'Saving…' : save === 'saved' ? 'Saved' : save === 'error' ? 'Not saved, check your connection' : ''}
         </span>
@@ -147,15 +165,27 @@ export function SelfServe({ token, workshopId, workshop, initialAnswers, initial
 
       <div className="ss-body">
         <nav className="ss-list" aria-label="Questions">
-          {slides.map((s, i) => (
-            <button
-              key={s.id}
-              className={`ss-item ${!review && i === index ? 'is-current' : ''} ${answeredFlags[i] ? 'is-done' : ''}`}
-              onClick={() => go(i)}
-            >
-              <span className="ss-tick" aria-hidden>{answeredFlags[i] ? '✓' : i + 1}</span>
-              <span>{s.title}</span>
-            </button>
+          {sections.map((g) => (
+            <div key={g.name} className="ss-group">
+              <p className="ss-group-head">
+                <span>{g.name}</span>
+                <span>{g.items.filter((i) => answeredFlags[i]).length}/{g.items.length}</span>
+              </p>
+              {g.items.map((i) => {
+                const s = slides[i];
+                return (
+                  <button
+                    key={s.id}
+                    className={`ss-item ${!review && i === index ? 'is-current' : ''} ${answeredFlags[i] ? 'is-done' : ''}`}
+                    onClick={() => go(i)}
+                    aria-current={!review && i === index ? 'step' : undefined}
+                  >
+                    <span className="ss-tick" aria-label={answeredFlags[i] ? 'Answered' : `Question ${i + 1}`}>{answeredFlags[i] ? '✓' : i + 1}</span>
+                    <span>{s.title}</span>
+                  </button>
+                );
+              })}
+            </div>
           ))}
           <button className={`ss-item ss-item-review ${review ? 'is-current' : ''}`} onClick={() => setReview(true)}>
             <span className="ss-tick" aria-hidden>→</span>
@@ -166,6 +196,8 @@ export function SelfServe({ token, workshopId, workshop, initialAnswers, initial
         <main className="ss-main">
           {review ? (
             <Review
+              token={token}
+              email={contactEmail}
               slides={slides}
               answered={answeredFlags}
               submitted={isSubmitted}
@@ -173,7 +205,7 @@ export function SelfServe({ token, workshopId, workshop, initialAnswers, initial
               submitting={submitting}
               onGo={go}
               onSubmit={async () => {
-                if (!window.confirm('Submit your workshop to Visions? You can still change answers until our team starts working on them.')) return;
+                if (!window.confirm('Submit your workshop to Visions? Your answers will be locked and sent to our team.')) return;
                 setSubmitting(true);
                 for (const id of Object.keys(pending.current)) await flush(id);
                 await submit();
@@ -183,9 +215,22 @@ export function SelfServe({ token, workshopId, workshop, initialAnswers, initial
             />
           ) : (
             <>
+              {welcomeBack && (
+                <div className="ss-welcome" role="status">
+                  <p>
+                    <strong>Welcome back.</strong> You&apos;ve answered {answeredCount} of {slides.length} questions. You&apos;re on
+                    question {index + 1}: {slide.title}.
+                  </p>
+                  {firstOpen >= 0 && firstOpen !== index && (
+                    <button type="button" className="pt-btn pt-btn-sm" onClick={() => go(firstOpen)}>
+                      Go to the first unanswered (question {firstOpen + 1})
+                    </button>
+                  )}
+                </div>
+              )}
               <div className="ss-step-row">
-                <p className="ss-step">Question {index + 1} of {slides.length} · {slide.section}</p>
-                {voiceEnabled && <ListenButton key={slide.id} token={token} slideId={slide.id} />}
+                <p className="ss-step">Question {index + 1} of {slides.length} · {slide.section} · about {minutesFor(slide)} min</p>
+                {voiceEnabled && <QuestionVoice key={slide.id} token={token} slideId={slide.id} />}
               </div>
               <div className="ss-slide">
                 <SlideFrame>
@@ -225,15 +270,6 @@ export function SelfServe({ token, workshopId, workshop, initialAnswers, initial
                   }}
                 />
               )}
-
-              <VoiceNotes
-                token={token}
-                workshopId={workshopId}
-                slideId={slide.id}
-                notes={notes.filter((n) => n.slideId === slide.id)}
-                disabled={locked}
-                onChange={(list) => setNotes((all) => [...all.filter((n) => n.slideId !== slide.id), ...list])}
-              />
 
               <div className="ss-nav">
                 <button className="pt-btn pt-btn-ghost" onClick={() => go(index - 1)} disabled={index === 0}>Back</button>
@@ -330,7 +366,7 @@ function AnswerPanel({ slide, answer, locked, onChange }: { slide: WorkshopSlide
         <textarea
           rows={parts.length || tapped ? 3 : 6}
           disabled={locked}
-          placeholder={parts.length || tapped ? '' : 'Type your answer here, or record a voice note below.'}
+          placeholder={parts.length || tapped ? '' : 'Type your answer here, or talk it through with the AI facilitator below.'}
           defaultValue={answer?.text ?? ''}
           key={`${slide.id}-text`}
           onChange={(e) => onChange({ text: e.target.value })}
@@ -341,21 +377,40 @@ function AnswerPanel({ slide, answer, locked, onChange }: { slide: WorkshopSlide
 }
 
 function Review({
-  slides, answered, submitted, closed, submitting, onGo, onSubmit,
+  token, email, slides, answered, submitted, closed, submitting, onGo, onSubmit,
 }: {
+  token: string; email: string;
   slides: WorkshopSlide[]; answered: boolean[]; submitted: boolean; closed: boolean; submitting: boolean;
   onGo: (i: number) => void; onSubmit: () => void;
 }) {
   const missing = slides.map((s, i) => ({ s, i })).filter(({ i }) => !answered[i]);
+  if (submitted || closed) {
+    return (
+      <div className="ss-review ss-complete">
+        <span className="ss-complete-mark" aria-hidden>✓</span>
+        <h1>Workshop submitted</h1>
+        <p>
+          Thank you. You answered {slides.length - missing.length} of {slides.length} questions, and everything is now with our
+          creative team.
+        </p>
+        <h2>What happens next</h2>
+        <ol className="ss-next">
+          <li>Our team reads every answer and AI conversation.</li>
+          <li>We may email you at {email} with a few follow-up questions.</li>
+          <li>We turn your answers into your Brand DNA summary and send it to you.</li>
+        </ol>
+        <p className="ss-locked-note">Your answers are now locked. If you need to change something, reply to our email and we can reopen it.</p>
+        <div className="pt-actions ss-complete-actions">
+          <a className="pt-btn" href={`/api/portal/answers/export?t=${encodeURIComponent(token)}`}>Download a copy of your answers</a>
+          <a className="pt-btn pt-btn-ghost" href={`/start/${token}`}>Back to your workshop page</a>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="ss-review">
-      <h1>{submitted ? 'Thank you, it’s with our team.' : 'Review and submit'}</h1>
-      {submitted ? (
-        <p>
-          We&apos;ve received your workshop. Our creative team will review your answers and be in touch. You can still change
-          an answer until we start work on it.
-        </p>
-      ) : missing.length ? (
+      <h1>Review and submit</h1>
+      {missing.length ? (
         <>
           <p>You&apos;ve answered {slides.length - missing.length} of {slides.length} questions. You can submit now, or go back to these:</p>
           <ul>{missing.map(({ s, i }) => <li key={s.id}><button className="pt-link" onClick={() => onGo(i)}>{i + 1}. {s.title}</button></li>)}</ul>
@@ -363,24 +418,26 @@ function Review({
       ) : (
         <p>Every question has an answer. Submit when you&apos;re ready.</p>
       )}
-      {!submitted && !closed && (
-        <button className="pt-btn" onClick={onSubmit} disabled={submitting}>{submitting ? 'Submitting…' : 'Submit to Visions'}</button>
-      )}
+      <p className="ss-locked-note">Once you submit, your answers are locked and go to our team.</p>
+      <button className="pt-btn" onClick={onSubmit} disabled={submitting}>{submitting ? 'Submitting…' : 'Submit to Visions'}</button>
     </div>
   );
 }
 
-/** Plays the question in the workshop voice. The audio is generated once per question and cached. */
-function ListenButton({ token, slideId }: { token: string; slideId: string }) {
+const MUTED_KEY = 'ss-voice-muted';
+
+/**
+ * Reads each question aloud in the workshop voice as soon as it opens, unless
+ * the client has muted it (remembered on this device). The audio is generated
+ * once per question and cached. If the browser blocks autoplay, the button
+ * falls back to a play control.
+ */
+function QuestionVoice({ token, slideId }: { token: string; slideId: string }) {
   const audio = useRef<HTMLAudioElement | null>(null);
   const [state, setState] = useState<'idle' | 'loading' | 'playing'>('idle');
-  useEffect(() => () => audio.current?.pause(), []);
-  function toggle() {
-    if (state !== 'idle') {
-      audio.current?.pause();
-      setState('idle');
-      return;
-    }
+  const [muted, setMuted] = useState<boolean | null>(null);
+
+  function play() {
     audio.current ??= new Audio(`/api/portal/speak/question?slideId=${slideId}&t=${encodeURIComponent(token)}`);
     const a = audio.current;
     a.onplaying = () => setState('playing');
@@ -389,9 +446,38 @@ function ListenButton({ token, slideId }: { token: string; slideId: string }) {
     a.currentTime = 0;
     a.play().catch(() => setState('idle'));
   }
+  function stop() {
+    audio.current?.pause();
+    setState('idle');
+  }
+
+  // Read the saved preference, then speak the question unless muted
+  useEffect(() => {
+    let m = false;
+    try { m = localStorage.getItem(MUTED_KEY) === '1'; } catch { /* ignore */ }
+    setMuted(m);
+    if (!m) play();
+    return () => audio.current?.pause();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function toggleMute() {
+    const next = !muted;
+    setMuted(next);
+    try { localStorage.setItem(MUTED_KEY, next ? '1' : '0'); } catch { /* ignore */ }
+    if (next) stop();
+    else play();
+  }
+
+  if (muted === null) return null;
   return (
-    <button type="button" className={`ss-listen ${state !== 'idle' ? 'is-on' : ''}`} onClick={toggle}>
-      {state === 'loading' ? 'Loading…' : state === 'playing' ? '■ Stop' : '▶ Listen to the question'}
-    </button>
+    <div className="ss-voice">
+      <button type="button" className={`ss-listen ${state !== 'idle' ? 'is-on' : ''}`} onClick={state === 'idle' ? play : stop}>
+        {state === 'loading' ? 'Loading…' : state === 'playing' ? '■ Stop' : muted ? '▶ Play the question' : '▶ Play again'}
+      </button>
+      <button type="button" className={`ss-listen ${muted ? 'is-on' : ''}`} onClick={toggleMute} aria-pressed={muted}>
+        {muted ? 'Unmute' : 'Mute'}
+      </button>
+    </div>
   );
 }

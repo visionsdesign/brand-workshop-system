@@ -51,7 +51,7 @@ export function FilesStep({ token, workshopId, files, status, canContinue }: Pro
               {pending ? 'Saving…' : 'Continue'}
             </button>
           ) : (
-            <button type="button" className="pt-btn pt-btn-ghost" disabled={pending} onClick={() => finish('skipped')}>
+            <button type="button" className="pt-btn" disabled={pending} onClick={() => finish('skipped')}>
               {pending ? 'Saving…' : 'Skip this step'}
             </button>
           )}

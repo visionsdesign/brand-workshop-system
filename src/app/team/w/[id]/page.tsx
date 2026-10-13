@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Uploader } from '@/components/portal/Uploader';
-import { INTAKE_FIELDS } from '@/lib/portal/intake';
-import { portalStore } from '@/lib/portal/store';
+import { INTAKE_FIELDS, MOVED_INTAKE_FIELDS } from '@/lib/portal/intake';
+import { portalStore, usingSupabase } from '@/lib/portal/store';
 import { requireTeam } from '@/lib/portal/team';
 import { STATUS_LABEL, TIER_LABEL } from '@/lib/portal/types';
 import { TeamShell } from '../../TeamShell';
 import { DriveFiles } from './DriveFiles';
+import { Lifecycle } from './Lifecycle';
 import { TeamAnswers } from './TeamAnswers';
 import { WorkshopForm } from './WorkshopForm';
 
@@ -25,6 +26,9 @@ export default async function TeamWorkshop({ params }: { params: Promise<{ id: s
   const allFiles = await store.listFiles(w.id);
   const files = allFiles.filter((f) => !f.slideId);
   const voice = allFiles.filter((f) => f.slideId);
+  // The Supabase project behind SUPABASE_URL, for links into its dashboard
+  const ref = usingSupabase() ? new URL(process.env.SUPABASE_URL ?? 'https://x.supabase.co').hostname.split('.')[0] : '';
+  const dash = `https://supabase.com/dashboard/project/${ref}`;
 
   return (
     <TeamShell email={email} active="workshops">
@@ -32,6 +36,7 @@ export default async function TeamWorkshop({ params }: { params: Promise<{ id: s
       <div className="tm-head">
         <h1>{w.clientName}</h1>
         <span className={`tm-status s-${w.status}`}>{STATUS_LABEL[w.status]}</span>
+        {w.archivedAt && <span className="tm-status s-archived">Archived</span>}
       </div>
       <p className="tm-sub">
         {TIER_LABEL[w.tier]} · {w.contactName}, <a href={`mailto:${w.contactEmail}`}>{w.contactEmail}</a> · started {when(w.createdAt)}
@@ -49,6 +54,15 @@ export default async function TeamWorkshop({ params }: { params: Promise<{ id: s
         </p>
       )}
 
+      <div className="tm-lifecycle-row">
+        <Lifecycle id={w.id} status={w.status} archived={Boolean(w.archivedAt)} />
+        <span className="tm-muted tm-small">
+          {w.submittedAt && <>Submitted {when(w.submittedAt)}. </>}
+          {w.completedAt && <>Completed {when(w.completedAt)}. </>}
+          {w.archivedAt && <>Archived {when(w.archivedAt)}.</>}
+        </span>
+      </div>
+
       <div className="tm-grid">
         <section className="tm-card">
           <h2>Intake {!w.intakeDone && <small className="tm-pending">not finished</small>}</h2>
@@ -59,7 +73,27 @@ export default async function TeamWorkshop({ params }: { params: Promise<{ id: s
                 <dd>{w.intake[f.key]?.trim() || <span className="tm-muted">Not answered</span>}</dd>
               </div>
             ))}
+            {/* Older workshops answered the opening questions here, before they moved to slides O01 to O03 */}
+            {MOVED_INTAKE_FIELDS.filter((f) => w.intake[f.key]?.trim()).map((f) => (
+              <div key={f.key}>
+                <dt>{f.label}</dt>
+                <dd>{w.intake[f.key]}</dd>
+              </div>
+            ))}
           </dl>
+          {w.answers?.INTAKE?.chat?.length ? (
+            <details className="tm-intake-chat">
+              <summary>Intake conversation ({w.answers.INTAKE.chat.length} messages)</summary>
+              <div className="tm-vivi-turns">
+                {w.answers.INTAKE.chat.map((t, i) => (
+                  <p key={i} className={t.role === 'user' ? 'is-user' : ''}>
+                    <span className="who">{t.role === 'user' ? 'Client' : 'AI'}</span>
+                    {t.content}
+                  </p>
+                ))}
+              </div>
+            </details>
+          ) : null}
         </section>
 
         <div className="tm-col">
@@ -82,6 +116,42 @@ export default async function TeamWorkshop({ params }: { params: Promise<{ id: s
               Client&apos;s private link: <code>/start/{w.token.slice(0, 6)}…</code>{' '}
               <a href={`/start/${w.token}`} target="_blank" rel="noreferrer">open as client ↗</a>
             </p>
+          </section>
+
+          <section className="tm-card">
+            <h2>Where it&apos;s stored</h2>
+            <ul className="tm-stored">
+              {ref ? (
+                <>
+                  <li>
+                    <a href={`${dash}/editor`} target="_blank" rel="noreferrer">Database ↗</a>
+                    <span>Supabase, table <code>portal_workshops</code>, id <code>{w.id}</code>: intake, answers, AI conversations, booking</span>
+                  </li>
+                  <li>
+                    <a href={`${dash}/storage/buckets/workshop-files`} target="_blank" rel="noreferrer">Files ↗</a>
+                    <span>Supabase Storage, bucket <code>workshop-files</code>, folder <code>{w.id}</code> ({allFiles.length} file{allFiles.length === 1 ? '' : 's'})</span>
+                  </li>
+                </>
+              ) : (
+                <li>
+                  <span>This computer only: <code>.data/portal.json</code> and <code>.data/files/{w.id}/</code></span>
+                </li>
+              )}
+              {w.driveFolderUrl ? (
+                <li>
+                  <a href={w.driveFolderUrl} target="_blank" rel="noreferrer">Google Drive ↗</a>
+                  <span>The client&apos;s shared folder</span>
+                </li>
+              ) : (
+                <li><span className="tm-muted">No Google Drive folder linked. Add one above.</span></li>
+              )}
+              {w.tier === 'self_serve' && (
+                <li>
+                  <a href={`/api/portal/answers/export?workshopId=${w.id}`}>Answers (.md) ↓</a>
+                  <span>Every answer and conversation in one file, for Capture</span>
+                </li>
+              )}
+            </ul>
           </section>
         </div>
       </div>

@@ -27,6 +27,7 @@ Order is presentation order. "Row" is the row in the canvas (1 = top).
 |---|---|---|---|---|
 | S00 | Title | `131:157` | `131:159` "[Brand Name]", `131:163` "brand workshop" | Gradient title |
 | A01 | Contents / Workshop Agenda *(not in registry)* | `131:189` | `131:214` objective line, `131:195`–`131:198` agenda rows, `131:200`–`131:208` agenda topics | Dark, red agenda |
+| O01 to O03 | Setting the Scene *(no Figma frame)* | n/a | Built on the generic dark question layout (as bespoke slides) | Dark |
 | D01 | Divider: The Core DNA | `131:165` | `131:167` | Gradient title |
 | S01 | The Spark (Your Journey) | `131:225` | `131:227` question | Dark question |
 | S02 | The Breakup | `131:235` | `131:243` question | Dark question |

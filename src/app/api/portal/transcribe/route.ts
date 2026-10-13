@@ -11,7 +11,8 @@ const MAX_BYTES = 8 * 1024 * 1024; // about five minutes of compressed speech
 /** Speech-to-text for a spoken reply to the AI facilitator. Client only; the audio isn't stored. */
 export async function POST(req: Request) {
   const access = await resolveAccess({ token: req.headers.get('x-workshop-token') });
-  if (!access || access.by !== 'client' || access.workshop.tier !== 'self_serve') {
+  // Self-serve clients, or a guided client talking through their intake
+  if (!access || access.by !== 'client' || (access.workshop.tier !== 'self_serve' && access.workshop.intakeDone)) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
   // Spoken replies count towards the same per-workshop limit as the AI chat

@@ -269,6 +269,8 @@ const rowToWorkshop = (r: Record<string, any>): PortalWorkshop => ({
   teamNotes: r.team_notes ?? '',
   answers: r.answers ?? {},
   submittedAt: r.submitted_at ?? null,
+  completedAt: r.completed_at ?? null,
+  archivedAt: r.archived_at ?? null,
   stripeSessionId: r.stripe_session_id ?? null,
   amountPaid: r.amount_paid ?? null,
   booking: r.booking ?? null,
@@ -281,6 +283,7 @@ const workshopToRow = (w: Partial<PortalWorkshop>) => {
     tier: 'tier', status: 'status', clientName: 'client_name', contactName: 'contact_name',
     contactEmail: 'contact_email', intake: 'intake', intakeDone: 'intake_done',
     driveFolderUrl: 'drive_folder_url', teamNotes: 'team_notes', submittedAt: 'submitted_at',
+    completedAt: 'completed_at', archivedAt: 'archived_at',
     stripeSessionId: 'stripe_session_id', amountPaid: 'amount_paid', booking: 'booking',
   };
   // answers are only written through portal_merge_answer, never wholesale

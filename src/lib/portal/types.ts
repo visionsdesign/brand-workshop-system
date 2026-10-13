@@ -70,6 +70,10 @@ export interface PortalWorkshop {
   /** Self-serve answers by slide ID */
   answers: SelfServeAnswers;
   submittedAt: string | null;
+  /** When the team marked the workshop complete */
+  completedAt?: string | null;
+  /** Archived workshops are hidden from the team's main list; the client sees them as complete */
+  archivedAt?: string | null;
   /** The code redeemed to create this workshop, if any */
   code: string | null;
   createdAt: string;

@@ -2,9 +2,11 @@ import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
 import { resolveAccess } from '@/lib/portal/access';
 import {
-  anthropic, chatSystem, chatTurnsUsed, draftSchema, draftSystem, FALLBACK, guideAvailable, LIMITS, MODEL, toMessages,
+  anthropic, chatSystem, chatTurnsUsed, draftSchema, draftSystem, FALLBACK, guideAvailable, INTAKE_CHAT_ID,
+  intakeChatSystem, intakeDraftSystem, intakeSchema, LIMITS, MODEL, toMessages,
 } from '@/lib/portal/guide';
-import { markStarted, partsFor, selfServeWorkshop } from '@/lib/portal/selfserve';
+import { INTAKE_FIELDS } from '@/lib/portal/intake';
+import { answersLocked, markStarted, partsFor, selfServeWorkshop } from '@/lib/portal/selfserve';
 import { portalStore } from '@/lib/portal/store';
 import type { ChatTurn } from '@/lib/portal/types';
 
@@ -14,7 +16,8 @@ export const maxDuration = 60;
 const SORRY = "Sorry, I can't help with that one. You can type your answer in the box instead.";
 
 /**
- * AI-guided self-serve, client only.
+ * AI-guided self-serve, client only. Also runs the intake as a conversation
+ * (slideId "INTAKE", any tier), drafting the intake fields instead of an answer.
  *  mode "chat":  streams the facilitator's next message as plain text and saves the transcript
  *  mode "draft": returns { text, parts } drafted from the transcript
  */
@@ -23,13 +26,14 @@ export async function POST(req: Request) {
   const access = await resolveAccess({ token: req.headers.get('x-workshop-token') });
   if (!access || access.by !== 'client') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const w = access.workshop;
-  if (w.tier !== 'self_serve' || w.status === 'complete') {
+  const body = await req.json().catch(() => null);
+  const isIntake = body?.slideId === INTAKE_CHAT_ID;
+  if (answersLocked(w) || (!isIntake && w.tier !== 'self_serve')) {
     return NextResponse.json({ error: 'The AI facilitator is not available for this workshop.' }, { status: 400 });
   }
-
-  const body = await req.json().catch(() => null);
-  const slide = selfServeWorkshop(w).slides.find((s) => s.id === body?.slideId);
-  if (!slide) return NextResponse.json({ error: 'unknown slide' }, { status: 400 });
+  const slide = isIntake ? null : selfServeWorkshop(w).slides.find((s) => s.id === body?.slideId);
+  if (!isIntake && !slide) return NextResponse.json({ error: 'unknown slide' }, { status: 400 });
+  const slideId: string = isIntake ? INTAKE_CHAT_ID : slide!.id;
 
   // The transcript comes from the client: check its shape strictly before it goes anywhere near the model
   const raw: unknown[] = Array.isArray(body?.turns) ? body.turns : [];
@@ -45,7 +49,7 @@ export async function POST(req: Request) {
   if (turns.length > LIMITS.turnsPerQuestion) {
     return NextResponse.json({ error: 'This conversation is long enough. Press "Draft my answer", or type your answer in the box.' }, { status: 429 });
   }
-  if (chatTurnsUsed(w) - (w.answers[slide.id]?.chat?.length ?? 0) + turns.length > LIMITS.turnsPerWorkshop) {
+  if (chatTurnsUsed(w) - (w.answers[slideId]?.chat?.length ?? 0) + turns.length > LIMITS.turnsPerWorkshop) {
     return NextResponse.json({ error: 'You have reached the limit for AI conversations on this workshop. Please type your answers.' }, { status: 429 });
   }
   const store = portalStore();
@@ -57,17 +61,17 @@ export async function POST(req: Request) {
         model: MODEL,
         max_tokens: 16000,
         ...FALLBACK,
-        output_config: { effort: 'medium', format: { type: 'json_schema', schema: draftSchema(slide) } },
-        system: draftSystem(w, slide),
+        output_config: { effort: 'medium', format: { type: 'json_schema', schema: slide ? draftSchema(slide) : intakeSchema() } },
+        system: slide ? draftSystem(w, slide) : intakeDraftSystem(w),
         messages: [
           ...toMessages(turns),
-          { role: 'user', content: '[The client pressed "Draft my answer". Write their answer now.]' },
+          { role: 'user', content: slide ? '[The client pressed "Draft my answer". Write their answer now.]' : '[The client pressed "Fill in my details". Fill in their intake now.]' },
         ],
       });
       if (res.stop_reason === 'refusal') return NextResponse.json({ error: SORRY }, { status: 422 });
       const text = res.content.find((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')?.text ?? '';
       const parsed = JSON.parse(text) as { text?: string; parts?: Record<string, string> };
-      const allowed = new Set(partsFor(slide).map((p) => p.key));
+      const allowed = new Set(slide ? partsFor(slide).map((p) => p.key) : INTAKE_FIELDS.map((f) => f.key));
       return NextResponse.json({
         text: String(parsed.text ?? '').slice(0, 8000),
         parts: Object.fromEntries(Object.entries(parsed.parts ?? {}).filter(([k]) => allowed.has(k)).map(([k, v]) => [k, String(v).slice(0, 8000)])),
@@ -105,7 +109,7 @@ export async function POST(req: Request) {
           ...FALLBACK,
           output_config: { effort: 'low' },
           cache_control: { type: 'ephemeral' },
-          system: chatSystem(w, slide),
+          system: slide ? chatSystem(w, slide) : intakeChatSystem(w),
           messages: toMessages(turns),
         });
         for await (const event of s) {
@@ -128,8 +132,8 @@ export async function POST(req: Request) {
         return; // don't save a broken turn
       }
       if (reply.trim()) {
-        await store.mergeAnswer(w.id, slide.id, { chat: [...turns, { role: 'assistant', content: reply.trim() }] });
-        await markStarted(w);
+        await store.mergeAnswer(w.id, slideId, { chat: [...turns, { role: 'assistant', content: reply.trim() }] });
+        if (slide) await markStarted(w);
       }
       finish();
     },

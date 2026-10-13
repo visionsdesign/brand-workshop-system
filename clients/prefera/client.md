@@ -59,6 +59,9 @@ Two-hour session, and tone of voice is deferred to a later phase, so Section 3 r
 
 | Slide ID | Action | Reason |
 |---|---|---|
+| O01 | skip | Opening questions were answered before the master changed; already covered in sections 1 and 5 |
+| O02 | skip | As O01 |
+| O03 | skip | As O01 |
 | S08 | light | Pre-launch two-person team; one question only |
 | S15 | light | Use to close the commercial objectives gap, don't map the full funnel |
 | S20 | light | Tone of voice deferred; capture positions on two contested scales only |

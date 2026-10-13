@@ -86,9 +86,9 @@ export function buildWorkshop(raw: RawWorkshop): Workshop {
     };
   });
 
-  // 3. Agenda: every block except the welcome, in order, with topics
+  // 3. Agenda: every block except the welcome (title, agenda, opening questions), in order, with topics
   const agenda: AgendaRow[] = blocks
-    .filter((b) => !b.ids.every((id) => id === 'S00' || id === 'A01'))
+    .filter((b) => !b.ids.every((id) => id === 'S00' || id === 'A01' || id[0] === 'O'))
     .map((b) => {
       const sectionSlides = resolved.filter((s) => b.ids.includes(s.id));
       const sectionName = sectionSlides.find((s) => s.kind === 'divider')?.section;

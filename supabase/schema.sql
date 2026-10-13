@@ -190,3 +190,9 @@ revoke execute on function vivi_prune() from public, anon, authenticated;
 
 select cron.unschedule('vivi-prune') where exists (select 1 from cron.job where jobname = 'vivi-prune');
 select cron.schedule('vivi-prune', '0 3 * * *', 'select vivi_prune()');
+
+-- ---------------------------------------------------------------------------
+-- Completing and archiving workshops. Safe to run again.
+
+alter table portal_workshops add column if not exists completed_at timestamptz;
+alter table portal_workshops add column if not exists archived_at timestamptz;

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { resolveAccess } from '@/lib/portal/access';
-import { markStarted, partsFor, selfServeWorkshop, valueKeys } from '@/lib/portal/selfserve';
+import { answersLocked, markStarted, partsFor, selfServeWorkshop, valueKeys } from '@/lib/portal/selfserve';
 import { portalStore } from '@/lib/portal/store';
 import type { SlideAnswer } from '@/lib/portal/types';
 
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   if (!access || access.by !== 'client') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const w = access.workshop;
   if (w.tier !== 'self_serve') return NextResponse.json({ error: 'This is a guided workshop.' }, { status: 400 });
-  if (w.status === 'complete') return NextResponse.json({ error: 'This workshop is closed.' }, { status: 409 });
+  if (answersLocked(w)) return NextResponse.json({ error: 'This workshop has been submitted, so answers can no longer change.' }, { status: 409 });
 
   const body = await req.json().catch(() => null);
   const slide = selfServeWorkshop(w).slides.find((s) => s.id === body?.slideId);

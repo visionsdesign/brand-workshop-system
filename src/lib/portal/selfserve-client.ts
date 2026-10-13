@@ -7,6 +7,9 @@ import type { SlideAnswer } from './types';
  * Client-facing, so written to the client.
  */
 export const HINTS: Record<string, string> = {
+  O01: 'A few lines on where things stand, and how you got here.',
+  O02: 'Be honest about what prompted this: it shapes everything that follows.',
+  O03: 'Describe each group you sell to: who they are and what they come to you for.',
   S01: 'Tell the story as you would to a friend: where you were, what happened, what you decided.',
   S02: 'Write it in your client’s voice, as if they were the one leaving. A few lines is plenty.',
   S03: 'Describe the old way people did things, then the new reality you are creating.',
@@ -78,3 +81,25 @@ export function spokenQuestion(s: WorkshopSlide): string {
   if (!bits.length) bits.push(s.title);
   return bits.join(' ').replace(/\.\./g, '.');
 }
+
+// Rough self-serve time per question, for the estimates shown to the client.
+// Typing time only: talking a question through with the AI facilitator takes longer.
+const MINUTES_BY_KIND: Record<string, number> = { question: 3, cards: 5, pyramid: 5, scales: 2, choices: 2, wordlists: 3, scenario: 3, summary: 2 };
+const MINUTES_BY_ID: Record<string, number> = { O01: 2, O02: 2, O03: 2, S02: 4, S03: 4, S07: 4, S10: 4, S11: 2 };
+
+export const minutesFor = (s: { id: string; kind: string }) => MINUTES_BY_ID[s.id] ?? MINUTES_BY_KIND[s.kind] ?? 3;
+
+export const totalMinutes = (slides: { id: string; kind: string }[]) => slides.reduce((n, s) => n + minutesFor(s), 0);
+
+/** 87 -> "about 1½ hours", 40 -> "about 40 minutes" (rounded to the nearest quarter hour over an hour) */
+export function aboutTime(minutes: number): string {
+  if (minutes < 60) return `about ${Math.max(5, Math.round(minutes / 5) * 5)} minutes`;
+  const quarters = Math.round(minutes / 15);
+  const hours = Math.floor(quarters / 4);
+  const frac = ['', '¼', '½', '¾'].at(quarters % 4);
+  return `about ${hours}${frac} hour${hours === 1 && !frac ? '' : 's'}`;
+}
+
+/** Answers can't change once the client has submitted, the team has completed it, or it's archived. The team can reopen it. */
+export const answersLocked = (w: { status: string; submittedAt: string | null; archivedAt?: string | null }) =>
+  w.status === 'complete' || Boolean(w.submittedAt) || Boolean(w.archivedAt);

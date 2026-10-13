@@ -14,10 +14,12 @@ export async function GET(req: Request) {
   if (!voiceConfigured()) return NextResponse.json({ error: 'not configured' }, { status: 404 });
   const url = new URL(req.url);
   const access = await resolveAccess({ token: url.searchParams.get('t') });
-  if (!access || access.by !== 'client' || access.workshop.tier !== 'self_serve') {
+  const slideId = url.searchParams.get('slideId') ?? '';
+  // Self-serve questions, or the intake conversation (any tier)
+  if (!access || access.by !== 'client' || (access.workshop.tier !== 'self_serve' && slideId !== 'INTAKE')) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
-  const chat = access.workshop.answers[url.searchParams.get('slideId') ?? '']?.chat ?? [];
+  const chat = access.workshop.answers[slideId]?.chat ?? [];
   const turn = chat[Number(url.searchParams.get('i'))];
   if (!turn || turn.role !== 'assistant') return NextResponse.json({ error: 'nothing to say' }, { status: 404 });
   try {

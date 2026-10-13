@@ -37,7 +37,7 @@ export const VIVI_FAQ: { q: string; a: string[] }[] = [
     q: 'How long does a branding workshop take?',
     a: [
       'The Guided workshop is a two-hour live session on a video call, plus about ten minutes beforehand to tell us about your brand.',
-      'Self-serve has 25 questions and saves as you go, so you can do it in one sitting or spread it over a few days.',
+      'Self-serve has 28 questions. Allow at least an hour and a half in total: it saves as you go, so you can do it in one sitting or spread it over a few days.',
     ],
   },
   {

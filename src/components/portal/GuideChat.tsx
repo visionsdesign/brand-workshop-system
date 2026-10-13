@@ -13,12 +13,29 @@ interface Props {
   voice?: boolean;
   /** Called with the drafted answer when the client chooses to use it */
   onUseDraft: (draft: { text: string; parts: Record<string, string> }) => void;
+  /** Display names for the parts, by key */
+  partNames?: Record<string, string>;
+  /** Open and start the conversation straight away */
+  autoStart?: boolean;
+  /** Wording, for uses other than a workshop question (the intake) */
+  labels?: Partial<typeof LABELS>;
 }
 
+const LABELS = {
+  start: 'Talk it through with our AI facilitator',
+  title: 'AI facilitator',
+  draft: 'Draft my answer',
+  drafting: 'Drafting…',
+  draftHeading: 'Your drafted answer',
+  use: 'Use this answer',
+  useHint: 'You can edit it in the boxes above.',
+};
+
 /** The AI facilitator for one question: a short conversation, then "Draft my answer". */
-export function GuideChat({ token, slideId, initial, partLabels, disabled, voice, onUseDraft }: Props) {
+export function GuideChat({ token, slideId, initial, partLabels, disabled, voice, onUseDraft, partNames, autoStart, labels }: Props) {
+  const L = { ...LABELS, ...labels };
   const [turns, setTurns] = useState<ChatTurn[]>(initial);
-  const [open, setOpen] = useState(initial.length > 0);
+  const [open, setOpen] = useState(initial.length > 0 || Boolean(autoStart));
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState<'reply' | 'draft' | null>(null);
   const [error, setError] = useState('');
@@ -132,6 +149,16 @@ export function GuideChat({ token, slideId, initial, partLabels, disabled, voice
     if (!turns.length) ask([]);
   }
 
+  // Open straight into the conversation (once), when asked to
+  const started = useRef(false);
+  useEffect(() => {
+    if (autoStart && !disabled && !started.current && !initial.length) {
+      started.current = true;
+      ask([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function send(e: React.FormEvent) {
     e.preventDefault();
     const text = input.trim();
@@ -157,7 +184,7 @@ export function GuideChat({ token, slideId, initial, partLabels, disabled, voice
   if (!open) {
     return (
       <button type="button" className="pt-btn pt-btn-ghost pt-btn-sm ss-guide-start" onClick={start} disabled={disabled}>
-        Talk it through with our AI facilitator
+        {L.start}
       </button>
     );
   }
@@ -167,7 +194,7 @@ export function GuideChat({ token, slideId, initial, partLabels, disabled, voice
     <div className="ss-guide">
       <div className="ss-guide-head">
         <div className="ss-guide-title">
-          <strong>AI facilitator</strong>
+          <strong>{L.title}</strong>
           {voice && (
             <button type="button" className={`ss-voice-toggle ${voiceOn ? 'is-on' : ''}`} onClick={toggleVoice} aria-pressed={voiceOn}>
               {voiceOn ? (speaking ? 'Speaking…' : 'Voice on') : 'Voice off'}
@@ -190,16 +217,16 @@ export function GuideChat({ token, slideId, initial, partLabels, disabled, voice
         ))}
         {draft && (
           <div className="ss-draft">
-            <p className="ss-draft-label">Your drafted answer</p>
+            <p className="ss-draft-label">{L.draftHeading}</p>
             {partLabels.map((label) =>
-              draft.parts[label]?.trim() ? <p key={label}><b>{label}:</b> {draft.parts[label]}</p> : null,
+              draft.parts[label]?.trim() ? <p key={label}><b>{partNames?.[label] ?? label}:</b> {draft.parts[label]}</p> : null,
             )}
             {draft.text.trim() && <p>{draft.text}</p>}
             <div className="ss-draft-actions">
               <button type="button" className="pt-btn pt-btn-sm" onClick={() => { onUseDraft(draft); setDraft(null); }}>
-                Use this answer
+                {L.use}
               </button>
-              <span>You can edit it in the boxes above.</span>
+              <span>{L.useHint}</span>
             </div>
           </div>
         )}
@@ -234,7 +261,7 @@ export function GuideChat({ token, slideId, initial, partLabels, disabled, voice
             )}
             <button type="submit" className="pt-btn pt-btn-sm" disabled={!!busy || !input.trim()}>Send</button>
             <button type="button" className="pt-btn pt-btn-ghost pt-btn-sm" disabled={!!busy || !replied} onClick={makeDraft}>
-              {busy === 'draft' ? 'Drafting…' : 'Draft my answer'}
+              {busy === 'draft' ? L.drafting : L.draft}
             </button>
           </div>
         </form>

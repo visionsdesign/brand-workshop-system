@@ -51,12 +51,46 @@ export async function updateWorkshop(id: string, _prev: FormState | undefined, f
   if (drive && !/^https:\/\/drive\.google\.com\//.test(drive)) {
     return { error: 'The Drive link should start with https://drive.google.com/', values };
   }
+  const current = await portalStore().getById(id);
   await portalStore().updateWorkshop(id, {
     ...(STATUSES.includes(status) ? { status } : {}),
+    // Picking Complete from the list counts as completing it
+    ...(status === 'complete' && current?.status !== 'complete' ? { completedAt: new Date().toISOString() } : {}),
     driveFolderUrl: drive,
     teamNotes: String(form.get('teamNotes') ?? '').slice(0, 10000),
   });
   revalidatePath(`/team/w/${id}`);
   revalidatePath('/team');
   return { ok: 'Saved', values };
+}
+
+export type LifecycleAction = 'complete' | 'reopen' | 'archive' | 'unarchive';
+
+/** The team's buttons on a workshop: mark it complete, reopen it for the client, archive or unarchive it */
+export async function setLifecycle(id: string, action: LifecycleAction): Promise<FormState> {
+  await requireTeam();
+  const store = portalStore();
+  const w = await store.getById(id);
+  if (!w) return { error: 'Workshop not found.' };
+  const now = new Date().toISOString();
+  const patch =
+    action === 'complete' ? { status: 'complete' as const, completedAt: now }
+    : action === 'reopen' ? {
+        // Back to where the client was before it was finished
+        status: (w.tier === 'self_serve' ? 'in_progress' : w.booking && w.booking.status !== 'cancelled' ? 'booked' : 'ready') as WorkshopStatus,
+        completedAt: null,
+        ...(w.tier === 'self_serve' ? { submittedAt: null } : {}),
+      }
+    : action === 'archive' ? { archivedAt: now }
+    : { archivedAt: null };
+  try {
+    await store.updateWorkshop(id, patch);
+  } catch (err) {
+    console.error('workshop lifecycle change failed', err);
+    return { error: 'That did not save. If this is new, run the latest supabase/schema.sql in Supabase first.' };
+  }
+  revalidatePath(`/team/w/${id}`);
+  revalidatePath('/team');
+  revalidatePath(`/start/${w.token}`);
+  return { ok: { complete: 'Marked complete', reopen: 'Reopened for the client', archive: 'Archived', unarchive: 'Unarchived' }[action] };
 }

@@ -18,8 +18,8 @@ The Brand DNA Workshop is one Next.js app that runs Visions' branding workshops 
 
 - **Facilitator** (Visions team): runs the live session from a presenter view with notes, timers and a running order.
 - **Live participants** (client): watch the synced client view during a recorded call; they don't type.
-- **Guided clients**: buy or redeem a code, fill an intake, upload files, book a 2 hour session on Cal.com.
-- **Self-serve clients** (£750 + VAT): answer every workshop question themselves by typing, voice notes or a conversation with an AI facilitator.
+- **Guided clients**: buy or redeem a code, do a short intake (an AI conversation or a form), upload files, book a 2 hour session on Cal.com.
+- **Self-serve clients** (£750 + VAT): answer all 28 questions themselves (allow at least 1½ hours), by typing or by talking each one through with an AI facilitator.
 - **Team**: log in to see every workshop, answers, files, codes and ViVi chat logs.
 - **Visitors**: the landing page sells both tiers; ViVi (the Visions AI assistant) answers questions.
 
@@ -69,7 +69,7 @@ Everything lives in one repo: workshop content as markdown, the app in `src/`, t
 | `clients/<slug>/facilitator-notes.md` | Presenter notes per slide (Baseline / Steering Prompt) |
 | `clients/_template/` | Starting point for each new client |
 | `scripts/build-content.mjs` | Parses client folders into `src/content/generated/*.json` (gitignored); runs on `predev` and `prebuild` |
-| `src/lib/registry.ts` | Master workshop: 32 slides (S00, A01, D01 to D04, S01 to S25, X01) plus bespoke B-slides, with Figma node IDs |
+| `src/lib/registry.ts` | Master workshop: 35 slides (S00, A01, O01 to O03, D01 to D04, S01 to S25, X01) plus bespoke B-slides, with Figma node IDs |
 | `src/lib/workshop.ts`, `content.ts` | Merge registry with client overrides (include / light / skip), build agenda; strip private fields for client views |
 | `src/lib/store.ts`, `sync.ts`, `timeline.ts`, `auth.ts` | Live session state, Realtime sync hook, timeline export, facilitator PIN cookie |
 | `src/lib/portal/*` | Portal domain: types, store, team auth, access, intake, self-serve, AI guide, payments, voice, Drive, ViVi, rate limiting |
@@ -95,12 +95,12 @@ There are 14 pages and 20 API route handlers; every API checks its own access, t
 | `/` | Public | Landing: both tiers, prices, Buy now, credit line, code form, ViVi |
 | `/buy/[tier]` | Public | Buyer details, then Stripe Checkout (`guided` or `self-serve`) |
 | `/buy/success` | Public | Post-payment: looks up the workshop by Stripe session and hands over the private link |
-| `/start/[token]` | Client (link token) | Step 1 intake, step 2 files (skippable), step 3 Cal.com booking (Guided) or start (Self-serve) |
+| `/start/[token]` | Client (link token) | Step 1 intake (AI conversation or form), step 2 files (skippable), step 3 Cal.com booking (Guided) or start (Self-serve); becomes a "Workshop submitted" or "Workshop complete" page when finished |
 | `/start/[token]/booked` | Client | Booking summary; waits for the Cal.com webhook to confirm |
-| `/start/[token]/workshop` | Client, Self-serve | Answer every slide: type, voice note, or AI facilitator chat; submit |
+| `/start/[token]/workshop` | Client, Self-serve | Answer every slide by typing or AI facilitator chat; submit, which locks the answers and shows the completion screen |
 | `/team/login`, `/team/auth` | Team | Magic link request, then token exchange |
-| `/team` | Team | All portal workshops and their status |
-| `/team/w/[id]` | Team | One workshop: intake, answers, files, Drive folder, booking, export |
+| `/team` | Team | Active and Archived workshops and their status |
+| `/team/w/[id]` | Team | One workshop: intake (and intake conversation), answers, files, Drive folder, booking, export; Mark complete / Reopen / Archive; links to where the data is stored |
 | `/team/codes` | Team | Create and list access codes (`VIS-XXXX-XXXX`) |
 | `/team/vivi` | Team | ViVi conversation log (30 day retention) |
 | `/w/[code]` | Live participants | Synced client view of the live deck |
@@ -118,11 +118,11 @@ There are 14 pages and 20 API route handlers; every API checks its own access, t
 | `POST /api/portal/files/complete` | Client or team | Record an uploaded file (slide, transcript, length) |
 | `GET, DELETE /api/portal/files/[id]` | Client or team | Signed download URL; delete |
 | `POST /api/portal/answers` | Client | Merge one slide answer (atomic SQL merge) |
-| `GET /api/portal/answers/export` | Client or team | All answers as markdown |
-| `POST /api/portal/guide` | Client, Self-serve | AI facilitator: `chat` streams text, `draft` returns structured JSON |
-| `GET /api/portal/speak/question` | Client | Cached TTS of a question |
+| `GET /api/portal/answers/export` | Team (`workshopId`) or client (`?t=` link token) | All answers as markdown |
+| `POST /api/portal/guide` | Client | AI facilitator: `chat` streams text, `draft` returns structured JSON. Self-serve slides, or `slideId: "INTAKE"` (any tier) for the intake conversation |
+| `GET /api/portal/speak/question` | Client | Cached TTS of a question (auto-played, mutable) |
 | `POST /api/portal/speak` | Client | Live TTS of an AI reply |
-| `POST /api/portal/transcribe` | Client | Speech to text for voice notes and voice chat |
+| `POST /api/portal/transcribe` | Client | Speech to text for spoken AI chat replies |
 | `GET /api/portal/booking` | Client | Booking status for the summary page |
 | `POST /api/team/session` | Supabase access token | Exchange magic link for the `vis_team` cookie |
 | `GET /api/team/drive`, `POST /api/team/drive/import` | Team | List a client's Drive folder; copy files into storage |
@@ -142,12 +142,12 @@ All data sits in one Supabase project, defined by `supabase/schema.sql`. Run the
 | `workshop_answers` | Live answers (word lists, scales) | session, slide, value |
 | `workshop_events` | Live timeline: slide changes, flagged moments | session, type, at |
 | `portal_codes` | Access codes | code, tier, max uses, uses |
-| `portal_workshops` | One row per client workshop | token, tier, status, intake, `answers` jsonb, `booking` jsonb, `stripe_session_id` (partial unique index), `amount_paid`, `submitted_at`, Drive folder |
+| `portal_workshops` | One row per client workshop | token, tier, status, intake, `answers` jsonb (slide answers, plus the intake conversation under `INTAKE`), `booking` jsonb, `stripe_session_id` (partial unique index), `amount_paid`, `submitted_at`, `completed_at`, `archived_at`, Drive folder |
 | `portal_files` | Uploaded files | workshop, path, `slide_id`, `transcript`, `seconds` |
 | `vivi_usage` | Rate limit counters | bucket, window, count |
 | `vivi_conversations` | ViVi chat logs | visitor hash, page, workshop, turns, `updated_at` |
 
-**Workshop status** moves through `intake` → `ready` → `booked` (Guided) or `in_progress` → `submitted` (Self-serve) → `complete`.
+**Workshop status** moves through `intake` → `ready` → `booked` (Guided) or `in_progress` → `submitted` (Self-serve) → `complete`. Answers lock once submitted, completed or archived; the team can reopen. Archiving is a separate date (`archived_at`), so a workshop keeps its status.
 
 **SQL functions**
 
@@ -198,11 +198,11 @@ There are no user accounts for clients: each role gets in a different way, and e
 ### Client portal
 
 1. **Get in**: buy on `/buy/[tier]` (Stripe) or enter an access code.
-2. **Intake**: 12 fields (`intake.ts`), saved as they go.
+2. **Intake**: 9 fields (`intake.ts`), gathered by an AI conversation that fills the form for the client to check, or typed into the form directly. The "Save your private link first" card (copy, or email it to yourself) stays at the top until the intake is done.
 3. **Files** (skippable): direct uploads to the private bucket via signed URLs; the team can also attach a Google Drive folder.
 4. **Guided**: Cal.com embed books the 2 hour session, passing `metadata[workshopId]`; the webhook marks it booked and the summary page shows the time in UK time.
-5. **Self-serve**: one screen per answerable slide, with typed answers, structured parts and scales, voice notes (transcribed), read-aloud questions and the AI facilitator; then submit.
-6. **Team view**: intake, answers, files, booking and a markdown export per workshop.
+5. **Self-serve**: one screen per answerable slide (28), opening with O01 to O03 (where the business is today, why now, customers). Questions are read aloud automatically (mute remembered per device). Typed answers, structured parts and scales, or the AI facilitator. Progress bar with time left, sidebar grouped by section with ticks, welcome-back banner with the resume point, and a rough time per question. Submitting locks the answers and shows a completion screen with a download of their answers.
+6. **Team view**: intake, answers, files, booking and a markdown export per workshop; Mark complete, Reopen, Archive / Unarchive; links to the database, storage folder and Drive folder.
 
 ### AI facilitator (Self-serve)
 
@@ -214,7 +214,7 @@ There are no user accounts for clients: each role gets in a different way, and e
 
 ### Voice
 
-- Question read-aloud: `eleven_multilingual_v2`, cached in storage by text hash so each question is paid for once.
+- Question read-aloud: plays automatically when a question opens (Mute toggle); `eleven_multilingual_v2`, cached in storage by text hash so each question is paid for once.
 - Live replies: `eleven_flash_v2_5` for low latency.
 - Transcription: `scribe_v2`. Voice: Jude (British).
 
@@ -323,7 +323,7 @@ A push to `main` deploys to production on Netlify; database changes are applied 
 - New nullable columns are omitted on insert so the app keeps working before the migration runs.
 - Check the cron job in Supabase under Integrations, Cron (`vivi-prune`).
 
-**Verified end to end**: live sync, codes, intake, uploads, concurrent self-serve saves, AI chat and draft, Stripe test payment (£750 + £150 VAT, invoice, idempotent webhook), Cal.com webhook and booking summary, ElevenLabs speech and transcription, ViVi chat, logging and 30 day pruning.
+**Verified end to end**: conversational intake, completion screens and answer locking (local test copy);  live sync, codes, intake, uploads, concurrent self-serve saves, AI chat and draft, Stripe test payment (£750 + £150 VAT, invoice, idempotent webhook), Cal.com webhook and booking summary, ElevenLabs speech and transcription, ViVi chat, logging and 30 day pruning.
 
 ## Known gaps and next steps
 
@@ -337,3 +337,4 @@ Going live with payments is the one blocking item; the rest are improvements.
 - [ ] Clear Stripe and Cal.com test data before launch.
 - [ ] Add error monitoring and a small test suite (webhooks, access checks, answer merge).
 - [ ] Optional: ViVi lead capture (email).
+- [ ] Optional: send the private link by email automatically (needs an email service), and pre-fill the opening slides from the intake conversation.

@@ -86,12 +86,15 @@ The master is Dom's design, rebuilt 1:1 from Figma on a 1920 × 1080 canvas (`sr
 
 ## 5. Slide registry
 
-The standard workshop is 32 slides: title, agenda, four section dividers, 24 question slides (S01 to S24), a break and the summary (S25). Registry IDs are stable; `template-map.md` maps each ID to its Figma frame.
+The standard workshop is 35 slides: title, agenda, three opening questions (O01 to O03), four section dividers, 24 question slides (S01 to S24), a break and the summary (S25). The opening questions used to be in the client intake and were moved onto slides to keep the intake short. Registry IDs are stable; `template-map.md` maps each ID to its Figma frame.
 
 | ID | Section | Slide | Question on slide | Notes? |
 |---|---|---|---|---|
 | S00 | Opening | Title | Client name | No |
 | A01 | Opening | Workshop Agenda | Workshop objective + running order | Objective only |
+| O01 | Opening | Setting the Scene: Where You Are Today | Where is `{{BRAND}}` today? (New venture, established, repositioning, merging…) | Yes |
+| O02 | Opening | Setting the Scene: Why Now | Why a brand workshop now? (What has changed, or what is not working?) | Yes |
+| O03 | Opening | Setting the Scene: Your Customers | Who are your customers? (If you sell to more than one group, name each one.) | Yes, per entity |
 | D01 | Divider | Section 1: The Core DNA | | No |
 | S01 | Core DNA | The Spark ("Your Journey") | What was the exact moment or frustration that made you say, "This industry is broken, and we have to fix it"? | Yes |
 | S02 | Core DNA | The Breakup | Write a breakup letter from one of your clients to your biggest competitor. Why are they leaving them for you? | Yes |

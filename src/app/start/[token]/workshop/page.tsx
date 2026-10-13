@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { SelfServe } from '@/components/portal/SelfServe';
 import { guideAvailable } from '@/lib/portal/guide';
-import { selfServeWorkshop } from '@/lib/portal/selfserve';
+import { answersLocked, selfServeWorkshop } from '@/lib/portal/selfserve';
 import { portalStore } from '@/lib/portal/store';
 import { voiceConfigured } from '@/lib/portal/voice';
 
@@ -22,7 +22,7 @@ export default async function SelfServePage({ params }: { params: Promise<{ toke
     'use server';
     const s = portalStore();
     const current = await s.getByToken(token);
-    if (!current || current.status === 'complete') return;
+    if (!current || answersLocked(current)) return;
     await s.updateWorkshop(current.id, { status: 'submitted', submittedAt: new Date().toISOString() });
     revalidatePath(`/start/${token}`);
   }
@@ -34,8 +34,9 @@ export default async function SelfServePage({ params }: { params: Promise<{ toke
       workshop={selfServeWorkshop(w)}
       initialAnswers={w.answers}
       initialNotes={notes}
+      contactEmail={w.contactEmail}
       submitted={Boolean(w.submittedAt)}
-      closed={w.status === 'complete'}
+      closed={answersLocked(w)}
       aiEnabled={guideAvailable()}
       voiceEnabled={voiceConfigured()}
       submit={submit}
