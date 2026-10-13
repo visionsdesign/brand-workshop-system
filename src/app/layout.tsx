@@ -8,6 +8,8 @@ import './portal.css';
 const inter = Inter({ subsets: ['latin'], weight: ['300', '400', '500', '700'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
+  // Share images and links need the full address
+  metadataBase: new URL(process.env.URL || 'https://brand.visionsdesign.co.uk'),
   title: 'Brand Workshop · Visions Design',
   robots: { index: false, follow: false },
 };
