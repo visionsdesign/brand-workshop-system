@@ -86,6 +86,17 @@ export async function POST(req: Request) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      // The visitor can close the chat mid-reply; after that, sending more must not throw
+      let open = true;
+      const send = (text: string) => {
+        if (!open) return;
+        try { controller.enqueue(encoder.encode(text)); } catch { open = false; }
+      };
+      const finish = () => {
+        if (!open) return;
+        open = false;
+        try { controller.close(); } catch { /* already closed */ }
+      };
       let reply = '';
       try {
         const s = anthropic().beta.messages.stream({
@@ -100,27 +111,27 @@ export async function POST(req: Request) {
         for await (const event of s) {
           if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
             reply += event.delta.text;
-            controller.enqueue(encoder.encode(event.delta.text));
+            send(event.delta.text);
           }
         }
         const final = await s.finalMessage();
         if (final.stop_reason === 'refusal') {
           const note = reply ? `\n\n${SORRY}` : SORRY;
           reply += note;
-          controller.enqueue(encoder.encode(note));
+          send(note);
         }
       } catch (err) {
         console.error('guide chat failed', err);
         const note = reply ? '\n\n(The connection dropped. Send your message again.)' : 'Sorry, something went wrong. Please try again in a moment.';
-        controller.enqueue(encoder.encode(note));
-        controller.close();
+        send(note);
+        finish();
         return; // don't save a broken turn
       }
       if (reply.trim()) {
         await store.mergeAnswer(w.id, slide.id, { chat: [...turns, { role: 'assistant', content: reply.trim() }] });
         await markStarted(w);
       }
-      controller.close();
+      finish();
     },
   });
   return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } });

@@ -28,6 +28,7 @@ export default async function ViviConversations() {
       <div className="tm-head"><h1>ViVi conversations</h1></div>
       <p className="tm-sub">
         What visitors ask ViVi on the workshop pages. Visitors are anonymous unless the chat happened on a client&apos;s own workshop page.
+        Conversations are deleted automatically 30 days after their last message.
       </p>
 
       {asked.length > 0 && (

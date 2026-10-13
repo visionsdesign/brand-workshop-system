@@ -134,7 +134,7 @@ export function ViviBubble() {
           </form>
 
           <p className="vivi-foot">
-            ViVi is an AI assistant, so answers may not be perfect. Chats are saved so our team can follow up.{' '}
+            ViVi is an AI assistant, so answers may not be perfect. Chats are kept for 30 days so our team can follow up.{' '}
             <a href={VIVI_URL} target="_blank" rel="noreferrer">Talk to the team ↗</a>
           </p>
         </div>

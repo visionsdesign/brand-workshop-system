@@ -54,6 +54,17 @@ export async function POST(req: Request) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      // The visitor can close the chat mid-reply; after that, sending more must not throw
+      let open = true;
+      const send = (text: string) => {
+        if (!open) return;
+        try { controller.enqueue(encoder.encode(text)); } catch { open = false; }
+      };
+      const finish = () => {
+        if (!open) return;
+        open = false;
+        try { controller.close(); } catch { /* already closed */ }
+      };
       try {
         const s = anthropic().beta.messages.stream({
           model: MODEL,
@@ -68,14 +79,14 @@ export async function POST(req: Request) {
         for await (const event of s) {
           if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
             said += event.delta.text;
-            controller.enqueue(encoder.encode(event.delta.text));
+            send(event.delta.text);
           }
         }
         const final = await s.finalMessage();
         if (final.stop_reason === 'refusal' || !said.trim()) {
           const note = (said ? '\n\n' : '') + "Sorry, I can't help with that one. The team can, through the full ViVi conversation.";
           said += note;
-          controller.enqueue(encoder.encode(note));
+          send(note);
         }
         if (conversationId && where) {
           await saveConversation({
@@ -85,9 +96,9 @@ export async function POST(req: Request) {
         }
       } catch (err) {
         console.error('vivi chat failed', err);
-        controller.enqueue(encoder.encode('Sorry, something went wrong. Please try again in a moment.'));
+        send('Sorry, something went wrong. Please try again in a moment.');
       }
-      controller.close();
+      finish();
     },
   });
   return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } });

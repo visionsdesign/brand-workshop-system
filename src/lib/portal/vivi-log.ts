@@ -17,6 +17,10 @@ export interface ViviConversation {
   updatedAt: string;
 }
 
+/** Conversations are deleted this long after their last message (also enforced nightly in Supabase) */
+export const RETENTION_DAYS = 30;
+const cutoff = () => new Date(Date.now() - RETENTION_DAYS * 864e5).toISOString();
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isConversationId = (id: unknown): id is string => typeof id === 'string' && UUID.test(id);
 
@@ -65,6 +69,7 @@ const fromRow = (r: Record<string, any>): ViviConversation => ({
  */
 export async function saveConversation(c: { id: string; visitor: string; page: string; workshopId: string | null; turns: ChatTurn[] }) {
   const now = new Date().toISOString();
+  await pruneConversations();
   const s = supa();
   if (s) {
     const { data: existing } = await s.from('vivi_conversations').select('visitor').eq('id', c.id).maybeSingle();
@@ -86,7 +91,21 @@ export async function saveConversation(c: { id: string; visitor: string; page: s
   await writeFile(FILE, JSON.stringify(all, null, 2));
 }
 
+/** Delete conversations past the retention period */
+export async function pruneConversations() {
+  const s = supa();
+  if (s) {
+    const { error } = await s.from('vivi_conversations').delete().lt('updated_at', cutoff());
+    if (error) console.error('pruning ViVi conversations failed', error);
+    return;
+  }
+  const all = await loadLocal();
+  const kept = all.filter((c) => c.updatedAt >= cutoff());
+  if (kept.length !== all.length) await writeFile(FILE, JSON.stringify(kept, null, 2));
+}
+
 export async function listConversations(limit = 200): Promise<ViviConversation[]> {
+  await pruneConversations();
   const s = supa();
   if (s) {
     const { data, error } = await s.from('vivi_conversations').select('*').order('updated_at', { ascending: false }).limit(limit);

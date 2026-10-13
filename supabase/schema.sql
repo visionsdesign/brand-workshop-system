@@ -171,3 +171,22 @@ create table if not exists vivi_conversations (
 );
 create index if not exists vivi_conversations_updated on vivi_conversations (updated_at desc);
 alter table vivi_conversations enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Retention: ViVi conversations are deleted 30 days after their last message;
+-- old ViVi usage counters after 2 days. Runs nightly at 03:00 UTC via pg_cron.
+-- Safe to run again (the job is replaced, not duplicated).
+
+create extension if not exists pg_cron;
+
+create or replace function vivi_prune()
+returns void
+language sql
+as $$
+  delete from vivi_conversations where updated_at < now() - interval '30 days';
+  delete from vivi_usage where updated_at < now() - interval '2 days';
+$$;
+revoke execute on function vivi_prune() from public, anon, authenticated;
+
+select cron.unschedule('vivi-prune') where exists (select 1 from cron.job where jobname = 'vivi-prune');
+select cron.schedule('vivi-prune', '0 3 * * *', 'select vivi_prune()');
