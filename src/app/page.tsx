@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { canBuy, CREDIT_LINE, priceLabel } from '@/lib/portal/payments';
 import type { Tier } from '@/lib/portal/types';
 import { RedeemForm } from './redeem/RedeemForm';
+import { ViviBubble } from '@/components/portal/ViviBubble';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,6 +86,7 @@ export default function Home() {
       </section>
 
       <footer className="pt-foot">© Visions Design</footer>
+      <ViviBubble />
     </main>
   );
 }

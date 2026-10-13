@@ -133,3 +133,25 @@ alter table portal_workshops add column if not exists amount_paid integer;
 alter table portal_workshops add column if not exists booking jsonb;
 create unique index if not exists portal_workshops_stripe_session
   on portal_workshops (stripe_session_id) where stripe_session_id is not null;
+
+-- ---------------------------------------------------------------------------
+-- ViVi chat on the public pages: simple usage counters for rate limiting.
+-- Buckets are a hashed visitor + hour, and a per-day total. Safe to run again.
+
+create table if not exists vivi_usage (
+  bucket text primary key,
+  count integer not null default 0,
+  updated_at timestamptz not null default now()
+);
+alter table vivi_usage enable row level security;
+
+-- Add one to a bucket and return the new count, in a single statement
+create or replace function vivi_hit(p_bucket text)
+returns integer
+language sql
+as $$
+  insert into vivi_usage (bucket, count) values (p_bucket, 1)
+  on conflict (bucket) do update set count = vivi_usage.count + 1, updated_at = now()
+  returning count;
+$$;
+revoke execute on function vivi_hit(text) from public, anon, authenticated;

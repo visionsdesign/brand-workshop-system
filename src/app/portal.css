@@ -628,3 +628,125 @@
 .ss-replay { display: block; margin-top: 6px; padding: 0; border: 0; background: none; color: rgba(255, 255, 255, 0.5); font-size: 12px; cursor: pointer; }
 .ss-replay:hover { color: #fff; }
 .ss-talking { gap: 8px; }
+
+/* ViVi, the Visions AI assistant */
+.vivi-wrap {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+.vivi {
+  position: relative;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #1c1c1e;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  text-decoration: none;
+  transition: transform 0.2s ease;
+}
+.vivi:hover { transform: scale(1.05); }
+.vivi:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+.vivi-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  animation: vivi-spin 14s linear infinite;
+}
+.vivi:hover .vivi-ring { animation-play-state: paused; }
+.vivi-ring text {
+  fill: #fff;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+.vivi-face {
+  width: 78%;
+  height: 78%;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: 50% 45%;
+  transform: scale(1.35);
+  clip-path: circle(37% at 50% 50%);
+}
+@keyframes vivi-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .vivi-ring { animation: none; }
+}
+@media (max-width: 600px) {
+  .vivi-wrap { right: 14px; bottom: 14px; }
+  .vivi { width: 96px; height: 96px; }
+}
+
+.vivi-panel {
+  width: min(360px, calc(100vw - 28px));
+  max-height: min(560px, calc(100vh - 190px));
+  overflow-y: auto;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(16, 16, 18, 0.96);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 14.5px;
+  animation: vivi-in 0.25s ease-out;
+}
+@keyframes vivi-in { from { opacity: 0; transform: translateY(8px); } }
+.vivi-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; color: rgba(255, 255, 255, 0.8); }
+.vivi-panel-head strong { color: #fff; font-weight: 500; }
+.vivi-close, .vivi-back { border: 0; background: none; color: rgba(255, 255, 255, 0.6); cursor: pointer; padding: 0; font-size: 14px; }
+.vivi-close { font-size: 22px; line-height: 1; }
+.vivi-close:hover, .vivi-back:hover { color: #fff; }
+.vivi-questions { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+.vivi-questions button {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+}
+.vivi-questions button:hover { background: #fff; color: #000; }
+.vivi-log { display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; margin-bottom: 12px; }
+.vivi-msg { margin: 0; max-width: 90%; padding: 9px 13px; border-radius: 14px; line-height: 1.5; white-space: pre-wrap; }
+.vivi-assistant { align-self: flex-start; background: rgba(255, 255, 255, 0.08); border-bottom-left-radius: 4px; }
+.vivi-user { align-self: flex-end; background: #fff; color: #000; border-bottom-right-radius: 4px; }
+.vivi-typing { color: rgba(255, 255, 255, 0.5); }
+.vivi-form { display: flex; gap: 6px; }
+.vivi-form input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font: inherit;
+  font-size: 14.5px;
+}
+.vivi-form input:focus { outline: none; border-color: rgba(255, 255, 255, 0.6); }
+.vivi-form button { width: 40px; height: 40px; flex: none; border-radius: 50%; border: 0; background: #fff; color: #000; font-size: 18px; cursor: pointer; }
+.vivi-form button:disabled { opacity: 0.4; cursor: default; }
+.vivi-error { margin: 0 0 8px; color: #ff8a80; font-size: 13px; }
+.vivi-foot { margin: 10px 0 0; font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+.vivi-foot a { color: rgba(255, 255, 255, 0.85); }
+@media (prefers-reduced-motion: reduce) { .vivi-panel { animation: none; } }

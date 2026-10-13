@@ -5,6 +5,7 @@ import { INTAKE_FIELDS } from '@/lib/portal/intake';
 import { CREDIT_LINE } from '@/lib/portal/payments';
 import { portalStore } from '@/lib/portal/store';
 import { AwaitConfirmation } from './AwaitConfirmation';
+import { ViviBubble } from '@/components/portal/ViviBubble';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'You’re booked · Visions Design', robots: { index: false, follow: false } };
@@ -108,6 +109,7 @@ export default async function Booked({ params }: { params: Promise<{ token: stri
         </section>
       </div>
       <footer className="pt-foot">© Visions Design</footer>
+      <ViviBubble />
     </main>
   );
 }

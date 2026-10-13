@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { canBuy, CREDIT_LINE, priceLabel, TIER_PRODUCT } from '@/lib/portal/payments';
 import type { Tier } from '@/lib/portal/types';
 import { BuyForm } from './BuyForm';
+import { ViviBubble } from '@/components/portal/ViviBubble';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,7 @@ export default async function Buy({
         )}
       </div>
       <footer className="pt-foot">© Visions Design</footer>
+      <ViviBubble />
     </main>
   );
 }

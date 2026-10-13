@@ -6,6 +6,7 @@ import { CalBooking } from './CalBooking';
 import { CopyLink } from './CopyLink';
 import { FilesStep } from './FilesStep';
 import { IntakeForm } from './IntakeForm';
+import { ViviBubble } from '@/components/portal/ViviBubble';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Your Brand Workshop · Visions Design', robots: { index: false, follow: false } };
@@ -129,6 +130,7 @@ export default async function ClientPortal({
         </ol>
       </div>
       <footer className="pt-foot">© Visions Design</footer>
+      <ViviBubble />
     </main>
   );
 }
