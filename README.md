@@ -82,3 +82,5 @@ Opens on port 3000 (`npm run dev -- -p 3110` for another). Without Supabase the 
 | `src/lib/timeline.ts` | The timeline export used by `Capture:` |
 
 Facilitator notes are only ever sent to the browser after the PIN check. The client page gets slide copy only.
+
+**Enquiries**: the landing page's "Not sure which is right for you?" form saves to `portal_enquiries` and shows in the team area under Enquiries. With `HUBSPOT_ACCESS_TOKEN` (a private app token with contacts read and write) each enquiry also creates or updates a HubSpot contact by email and adds a note with their message; with `SLACK_WEBHOOK_URL` (an incoming webhook) it posts to Slack. Both run after the visitor's reply and never block it.

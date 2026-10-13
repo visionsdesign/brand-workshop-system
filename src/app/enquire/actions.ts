@@ -3,6 +3,7 @@
 import { createHash } from 'node:crypto';
 import { headers } from 'next/headers';
 import { addEnquiry, type Interest } from '@/lib/portal/enquiries';
+import { notifyEnquiry } from '@/lib/portal/notify';
 import { hit } from '@/lib/portal/ratelimit';
 
 export interface EnquiryState {
@@ -37,12 +38,14 @@ export async function enquire(_prev: EnquiryState | undefined, form: FormData): 
     return { error: 'We have had a lot of messages just now. Please try again a little later.', values };
   }
 
+  const enquiry = {
+    name: values.name, email: values.email, phone: values.phone, company: values.company,
+    interest: INTERESTS.includes(values.interest as Interest) ? (values.interest as Interest) : 'not_sure' as Interest,
+    message: values.message, contactBy: (values.contactBy === 'phone' ? 'phone' : 'email') as 'phone' | 'email',
+  };
   try {
-    await addEnquiry({
-      name: values.name, email: values.email, phone: values.phone, company: values.company,
-      interest: INTERESTS.includes(values.interest as Interest) ? (values.interest as Interest) : 'not_sure',
-      message: values.message, contactBy: values.contactBy === 'phone' ? 'phone' : 'email',
-    });
+    await addEnquiry(enquiry);
+    notifyEnquiry(enquiry);
   } catch (err) {
     console.error('saving enquiry failed', err);
     return { error: 'That did not send. Please try again, or use Talk to the team below.', values };
