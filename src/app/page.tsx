@@ -4,6 +4,7 @@ import { REGISTRY } from '@/lib/registry';
 import { aboutTime, SLIDE_IDS, totalMinutes } from '@/lib/portal/selfserve';
 import type { Tier } from '@/lib/portal/types';
 import { RedeemForm } from './redeem/RedeemForm';
+import { EnquiryForm } from './enquire/EnquiryForm';
 import { ViviBubble } from '@/components/portal/ViviBubble';
 
 export const dynamic = 'force-dynamic';
@@ -78,6 +79,17 @@ export default function Home() {
         ))}
       </section>
       <p className="pt-credit">{CREDIT_LINE}</p>
+
+      <section className="pt-redeem" id="talk">
+        <div>
+          <h2>Not sure which is right for you?</h2>
+          <p>
+            Leave your details and someone from our team will get in touch to talk through your options, with no obligation.
+            We&apos;ll help you choose between Guided and Self-serve, or shape something around you.
+          </p>
+        </div>
+        <EnquiryForm />
+      </section>
 
       <section className="pt-redeem" id="code">
         <div>

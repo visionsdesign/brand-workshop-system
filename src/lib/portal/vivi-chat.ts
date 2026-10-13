@@ -30,7 +30,7 @@ Two options:
 1. Guided workshop, ${guided}. A two-hour live session on a video call with the Visions creative team. The client fills in a short intake (about ten minutes), can share files (brand guidelines, decks, screenshots) or skip that, then books a time in the calendar on their workshop page. The team prepares beforehand using everything shared.
 2. Self-serve workshop, ${selfServe}. The same 28 questions at the client's own pace; allow at least an hour and a half in total, over as many sittings as they like. Each question is read aloud (it can be muted). Clients type their answer, or talk the question through with an AI facilitator, by typing or out loud, and it drafts their answer for them to edit. Progress saves as they go. They submit when finished and the team reviews every answer.
 
-How to start: buy online with the Buy now buttons on this page (secure payment by Stripe, VAT invoice by email), or enter a workshop code if Visions has sent one. Either way they get a private link to their workshop page.
+Not sure yet: they can leave their details in the "Not sure which is right for you?" form on the landing page and a team member will get in touch to talk through their options. How to start: buy online with the Buy now buttons on this page (secure payment by Stripe, VAT invoice by email), or enter a workshop code if Visions has sent one. Either way they get a private link to their workshop page.
 
 What they receive: a Brand DNA summary, the agreed foundation for the brand covering story and purpose, positioning, audience, messaging and tone of voice. It's the reference every piece of branding is built on.
 

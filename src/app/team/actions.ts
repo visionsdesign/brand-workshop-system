@@ -8,6 +8,7 @@ import { clearTeamSession, isTeamEmail, requireTeam, setTeamSession, teamDomain 
 import type { Tier, WorkshopStatus } from '@/lib/portal/types';
 import { driveSyncConfigured, syncLater, syncWorkshop } from '@/lib/portal/drive-sync';
 import { DriveError, folderUrl } from '@/lib/portal/drive';
+import { setHandled } from '@/lib/portal/enquiries';
 
 export interface FormState {
   error?: string;
@@ -114,4 +115,10 @@ export async function syncToDrive(id: string): Promise<FormState & { url?: strin
       : '';
     return { error: `Drive sync did not work.${hint}` };
   }
+}
+
+export async function markEnquiry(id: string, handled: boolean) {
+  const email = await requireTeam();
+  await setHandled(id, handled ? email : null);
+  revalidatePath('/team/enquiries');
 }

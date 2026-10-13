@@ -91,6 +91,9 @@
 .pt-redeem p { margin: 0; color: rgba(255, 255, 255, 0.62); max-width: 420px; }
 
 .pt-form { display: grid; gap: 16px; }
+.pt-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.pt-enquiry-done { padding: 22px 24px; border-radius: 14px; border: 1px solid rgba(126, 226, 160, 0.5); background: rgba(126, 226, 160, 0.06); }
+.pt-enquiry-done p { margin: 8px 0 0; }
 .pt-form label { display: grid; gap: 6px; font-size: 14px; color: rgba(255, 255, 255, 0.8); }
 .pt-form label em { font-style: normal; color: rgba(255, 255, 255, 0.4); }
 .pt-form small { color: rgba(255, 255, 255, 0.45); font-size: 13px; margin-top: -2px; }
@@ -589,6 +592,13 @@
 .tm-tabs a.is-active { border-color: var(--ui-line-strong); color: var(--ui-fg); font-weight: 500; }
 .tm-intake-chat { margin-top: 16px; }
 .tm-intake-chat summary { cursor: pointer; font-size: 14px; }
+.tm-enquiries { display: grid; gap: 12px; margin-bottom: 28px; }
+.tm-enquiry.is-done { opacity: 0.7; }
+.tm-enquiry-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.tm-enquiry-head h2 { margin: 0; font-size: 17px; }
+.tm-enquiry-meta { margin: 6px 0 0; font-size: 14px; color: var(--ui-fg-2); }
+.tm-enquiry-msg { margin: 10px 0 0; white-space: pre-wrap; font-size: 14px; }
+.tm-enquiry .tm-lifecycle { margin-top: 14px; }
 .tm-stored { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
 .tm-stored li { display: grid; gap: 2px; font-size: 14px; }
 .tm-stored span { color: var(--ui-fg-2); font-size: 13px; overflow-wrap: anywhere; }

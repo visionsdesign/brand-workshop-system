@@ -203,3 +203,23 @@ alter table portal_workshops add column if not exists archived_at timestamptz;
 
 alter table portal_workshops add column if not exists drive_sync_folder_id text;
 alter table portal_files add column if not exists drive_file_id text;
+
+-- ---------------------------------------------------------------------------
+-- Enquiries: visitors who'd like to talk to the team before choosing a
+-- workshop. Safe to run again.
+
+create table if not exists portal_enquiries (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  email text not null,
+  phone text,
+  company text,
+  interest text not null default 'not_sure',   -- guided | self_serve | not_sure
+  message text,
+  contact_by text not null default 'email',     -- email | phone
+  handled_at timestamptz,
+  handled_by text,
+  created_at timestamptz not null default now()
+);
+create index if not exists portal_enquiries_created on portal_enquiries (created_at desc);
+alter table portal_enquiries enable row level security;
