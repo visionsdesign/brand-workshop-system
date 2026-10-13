@@ -19,7 +19,7 @@ const STATS = [
   { value: '127', label: ['Workshops', 'completed'] },
   { value: '100%', label: ['Happy', 'customers'] },
   { value: '87%', label: ['Continue to', 'work with us'] },
-  { value: '10 years', label: ['Branding', 'experience'] },
+  { value: '10', label: ['Years branding', 'experience'] },
 ];
 
 const TIERS = [
