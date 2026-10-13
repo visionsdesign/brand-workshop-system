@@ -5,6 +5,7 @@ import { guideAvailable } from '@/lib/portal/guide';
 import { answersLocked, selfServeWorkshop } from '@/lib/portal/selfserve';
 import { portalStore } from '@/lib/portal/store';
 import { voiceConfigured } from '@/lib/portal/voice';
+import { syncLater } from '@/lib/portal/drive-sync';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Your workshop · Visions Design', robots: { index: false, follow: false } };
@@ -24,6 +25,7 @@ export default async function SelfServePage({ params }: { params: Promise<{ toke
     const current = await s.getByToken(token);
     if (!current || answersLocked(current)) return;
     await s.updateWorkshop(current.id, { status: 'submitted', submittedAt: new Date().toISOString() });
+    syncLater(current.id);
     revalidatePath(`/start/${token}`);
   }
 

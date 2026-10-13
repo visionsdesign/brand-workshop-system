@@ -72,6 +72,8 @@ export interface PortalWorkshop {
   submittedAt: string | null;
   /** When the team marked the workshop complete */
   completedAt?: string | null;
+  /** This workshop's folder in the Visions Shared Drive (Drive sync) */
+  driveSyncFolderId?: string | null;
   /** Archived workshops are hidden from the team's main list; the client sees them as complete */
   archivedAt?: string | null;
   /** The code redeemed to create this workshop, if any */
@@ -115,6 +117,8 @@ export interface WorkshopFile {
   transcript: string | null;
   /** Length of a voice note in seconds */
   seconds: number | null;
+  /** Set once the file has been copied to the workshop's Drive folder */
+  driveFileId?: string | null;
   createdAt: string;
 }
 

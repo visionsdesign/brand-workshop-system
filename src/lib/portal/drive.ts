@@ -1,6 +1,7 @@
-// Read-only Google Drive access for the team area, through a service account.
-// Share the clients' parent Drive folder with GOOGLE_SERVICE_ACCOUNT_EMAIL once;
-// every client folder inside it can then be listed and imported.
+// Google Drive through a service account. Reading: share the clients' parent
+// Drive folder with GOOGLE_SERVICE_ACCOUNT_EMAIL once, and every client folder
+// inside it can be listed and imported. Writing (Drive sync): the service
+// account is a Content manager of a Shared Drive, see drive-sync.ts.
 import { JWT } from 'google-auth-library';
 
 const API = 'https://www.googleapis.com/drive/v3';
@@ -15,7 +16,7 @@ async function token(): Promise<string> {
     email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
     // Env files and Netlify store the key's newlines as literal \n
     key: (process.env.GOOGLE_PRIVATE_KEY ?? '').replace(/\\n/g, '\n'),
-    scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+    scopes: ['https://www.googleapis.com/auth/drive'],
   });
   const { token: t } = await jwt.getAccessToken();
   if (!t) throw new Error('No Google access token');
@@ -134,3 +135,83 @@ export async function downloadFile(fileId: string): Promise<{ bytes: Uint8Array;
   const name = meta.exportAs && !meta.name.toLowerCase().endsWith(`.${meta.exportAs.ext}`) ? `${meta.name}.${meta.exportAs.ext}` : meta.name;
   return { bytes, name, type: meta.exportAs?.mimeType ?? meta.mimeType };
 }
+
+// ---------- writing (Drive sync) ----------
+
+const UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
+const DOC = 'application/vnd.google-apps.document';
+const quote = (v: string) => v.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+async function send(url: string, init: RequestInit) {
+  const res = await fetch(url, {
+    ...init,
+    headers: { Authorization: `Bearer ${await token()}`, ...(init.headers as Record<string, string>) },
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    const detail = (await res.text().catch(() => '')).slice(0, 300);
+    throw new DriveError(`Google Drive returned an error (${res.status}). ${detail}`, res.status);
+  }
+  return res;
+}
+
+/** The ID of a folder or file with this exact name directly inside a folder, if there is one */
+export async function findChild(parentId: string, name: string, folder = false): Promise<string | null> {
+  const res = await drive('/files', {
+    q: `'${parentId}' in parents and name = '${quote(name)}' and trashed = false${folder ? ` and mimeType = '${FOLDER}'` : ''}`,
+    fields: 'files(id)',
+    pageSize: '1',
+    includeItemsFromAllDrives: 'true',
+    corpora: 'allDrives',
+  });
+  return (await res.json()).files?.[0]?.id ?? null;
+}
+
+export async function createFolder(name: string, parentId: string): Promise<string> {
+  const res = await send(`${API}/files?supportsAllDrives=true&fields=id`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, mimeType: FOLDER, parents: [parentId] }),
+  });
+  return (await res.json()).id;
+}
+
+/** A folder by name inside a parent, created if it isn't there yet */
+export async function ensureFolder(name: string, parentId: string): Promise<string> {
+  return (await findChild(parentId, name, true)) ?? createFolder(name, parentId);
+}
+
+/** Upload bytes as a new file (resumable, so large files are fine). convertTo turns it into a Google Doc. */
+export async function uploadBytes(parentId: string, name: string, type: string, bytes: Uint8Array, convertTo?: string): Promise<string> {
+  const start = await send(`${UPLOAD}?uploadType=resumable&supportsAllDrives=true&fields=id`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json; charset=UTF-8', 'X-Upload-Content-Type': type || 'application/octet-stream' },
+    body: JSON.stringify({ name, parents: [parentId], ...(convertTo ? { mimeType: convertTo } : {}) }),
+  });
+  const session = start.headers.get('location');
+  if (!session) throw new DriveError('Google Drive did not start the upload.', 502);
+  const res = await send(session, {
+    method: 'PUT',
+    headers: { 'Content-Type': type || 'application/octet-stream' },
+    body: Buffer.from(bytes),
+  });
+  return (await res.json()).id;
+}
+
+async function trash(fileId: string) {
+  await send(`${API}/files/${fileId}?supportsAllDrives=true`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ trashed: true }),
+  });
+}
+
+/** Write a markdown document as a Google Doc, replacing the previous version with the same name */
+export async function replaceDoc(parentId: string, name: string, markdown: string): Promise<string> {
+  const old = await findChild(parentId, name);
+  const id = await uploadBytes(parentId, name, 'text/markdown', new TextEncoder().encode(markdown), DOC);
+  if (old) await trash(old);
+  return id;
+}
+
+export const folderUrl = (id: string) => `https://drive.google.com/drive/folders/${id}`;

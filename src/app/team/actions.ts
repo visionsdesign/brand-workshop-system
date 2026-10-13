@@ -6,6 +6,8 @@ import { checkPin } from '@/lib/auth';
 import { portalStore, usingSupabase } from '@/lib/portal/store';
 import { clearTeamSession, isTeamEmail, requireTeam, setTeamSession, teamDomain } from '@/lib/portal/team';
 import type { Tier, WorkshopStatus } from '@/lib/portal/types';
+import { driveSyncConfigured, syncLater, syncWorkshop } from '@/lib/portal/drive-sync';
+import { DriveError, folderUrl } from '@/lib/portal/drive';
 
 export interface FormState {
   error?: string;
@@ -89,8 +91,27 @@ export async function setLifecycle(id: string, action: LifecycleAction): Promise
     console.error('workshop lifecycle change failed', err);
     return { error: 'That did not save. If this is new, run the latest supabase/schema.sql in Supabase first.' };
   }
+  if (action === 'complete') syncLater(id);
   revalidatePath(`/team/w/${id}`);
   revalidatePath('/team');
   revalidatePath(`/start/${w.token}`);
   return { ok: { complete: 'Marked complete', reopen: 'Reopened for the client', archive: 'Archived', unarchive: 'Unarchived' }[action] };
+}
+
+/** "Sync to Drive now" on a workshop: copies anything new and rewrites the documents */
+export async function syncToDrive(id: string): Promise<FormState & { url?: string }> {
+  await requireTeam();
+  if (!driveSyncConfigured()) return { error: 'Drive sync is not set up. Add GOOGLE_DRIVE_SYNC_FOLDER and the Google keys.' };
+  try {
+    const r = await syncWorkshop(id);
+    if (!r) return { error: 'Workshop not found.' };
+    revalidatePath(`/team/w/${id}`);
+    return { ok: r.files ? `Synced, ${r.files} new file${r.files === 1 ? '' : 's'} copied` : 'Synced, everything is up to date', url: folderUrl(r.folderId) };
+  } catch (err) {
+    console.error('Drive sync failed', id, err);
+    const hint = err instanceof DriveError && (err.status === 403 || err.status === 404)
+      ? ' Check the service account is a Content manager of the Shared Drive.'
+      : '';
+    return { error: `Drive sync did not work.${hint}` };
+  }
 }

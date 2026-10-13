@@ -25,7 +25,7 @@ Without Supabase, portal data and uploads are kept in `.data/` on this machine (
 
 **Voice (ElevenLabs)**, with `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` (Jude): self-serve questions are read aloud automatically when they open, with a Mute toggle remembered per device (audio generated once per question and cached in storage under `tts/`), the AI facilitator has a voice mode that speaks its replies and lets the client answer out loud, and spoken replies are transcribed by ElevenLabs Scribe, with the browser transcript as a fallback.
 
-**Google Drive**: with `GOOGLE_SERVICE_ACCOUNT_EMAIL` and `GOOGLE_PRIVATE_KEY`, the team page lists a workshop's linked Drive folder and can import files from it.
+**Google Drive**: with `GOOGLE_SERVICE_ACCOUNT_EMAIL` and `GOOGLE_PRIVATE_KEY`, the team page lists a workshop's linked Drive folder and can import files from it. **Drive sync**: with `GOOGLE_DRIVE_SYNC_FOLDER` set to a folder in a Shared Drive (the service account added to the Shared Drive as a Content manager), every workshop gets its own folder there with an Intake doc, a Workshop answers doc (self-serve) and a Files folder. Uploads are copied as they arrive, the docs are rewritten when the intake is saved, the workshop is submitted or completed, and the team can press "Sync to Drive now". One way only: deleting in the app leaves the Drive copy. Run `supabase/schema.sql` for the `drive_sync_folder_id` and `drive_file_id` columns.
 
 ## Links per client
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { DriveError, downloadFile, driveConfigured, folderIdFromUrl, isInsideFolder } from '@/lib/portal/drive';
+import { syncLater } from '@/lib/portal/drive-sync';
 import { portalStore } from '@/lib/portal/store';
 import { teamMember } from '@/lib/portal/team';
 
@@ -28,6 +29,7 @@ export async function POST(req: Request) {
     const file = await store.addFile({
       workshopId: w.id, name, size: bytes.byteLength, type, path, uploadedBy: 'team', slideId: null, transcript: null, seconds: null,
     });
+    syncLater(w.id);
     return NextResponse.json(file);
   } catch (err) {
     if (err instanceof DriveError) return NextResponse.json({ error: err.message }, { status: err.status });

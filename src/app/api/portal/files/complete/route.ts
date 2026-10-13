@@ -3,6 +3,7 @@ import { resolveAccess } from '@/lib/portal/access';
 import { markStarted, SLIDE_IDS } from '@/lib/portal/selfserve';
 import { portalStore } from '@/lib/portal/store';
 import { transcribe } from '@/lib/portal/voice';
+import { syncLater } from '@/lib/portal/drive-sync';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -37,5 +38,6 @@ export async function POST(req: Request) {
     seconds: slideId && Number.isFinite(seconds) ? Math.round(seconds) : null,
   });
   if (slideId && access.by === 'client') await markStarted(access.workshop);
+  syncLater(access.workshop.id);
   return NextResponse.json(file);
 }

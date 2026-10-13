@@ -8,6 +8,9 @@ import { STATUS_LABEL, TIER_LABEL } from '@/lib/portal/types';
 import { TeamShell } from '../../TeamShell';
 import { DriveFiles } from './DriveFiles';
 import { Lifecycle } from './Lifecycle';
+import { DriveSync } from './DriveSync';
+import { driveSyncConfigured } from '@/lib/portal/drive-sync';
+import { folderUrl } from '@/lib/portal/drive';
 import { TeamAnswers } from './TeamAnswers';
 import { WorkshopForm } from './WorkshopForm';
 
@@ -137,13 +140,29 @@ export default async function TeamWorkshop({ params }: { params: Promise<{ id: s
                   <span>This computer only: <code>.data/portal.json</code> and <code>.data/files/{w.id}/</code></span>
                 </li>
               )}
-              {w.driveFolderUrl ? (
+              {driveSyncConfigured() ? (
                 <li>
-                  <a href={w.driveFolderUrl} target="_blank" rel="noreferrer">Google Drive ↗</a>
-                  <span>The client&apos;s shared folder</span>
+                  {w.driveSyncFolderId ? (
+                    <a href={folderUrl(w.driveSyncFolderId)} target="_blank" rel="noreferrer">Visions Drive folder ↗</a>
+                  ) : (
+                    <b>Visions Drive folder</b>
+                  )}
+                  <span>
+                    Copied automatically: intake, answers and {allFiles.filter((f) => f.driveFileId).length} of {allFiles.length} file{allFiles.length === 1 ? '' : 's'}.
+                    {!w.driveSyncFolderId && ' Created on the first sync.'}
+                  </span>
+                  <DriveSync id={w.id} />
                 </li>
               ) : (
-                <li><span className="tm-muted">No Google Drive folder linked. Add one above.</span></li>
+                <li><span className="tm-muted">Drive sync is off. Set GOOGLE_DRIVE_SYNC_FOLDER to copy each workshop into the Shared Drive.</span></li>
+              )}
+              {w.driveFolderUrl ? (
+                <li>
+                  <a href={w.driveFolderUrl} target="_blank" rel="noreferrer">Client&apos;s Google Drive ↗</a>
+                  <span>The folder the client shared with us</span>
+                </li>
+              ) : (
+                <li><span className="tm-muted">No client Drive folder linked. Add one above if they shared one.</span></li>
               )}
               {w.tier === 'self_serve' && (
                 <li>

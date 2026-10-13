@@ -196,3 +196,10 @@ select cron.schedule('vivi-prune', '0 3 * * *', 'select vivi_prune()');
 
 alter table portal_workshops add column if not exists completed_at timestamptz;
 alter table portal_workshops add column if not exists archived_at timestamptz;
+
+-- ---------------------------------------------------------------------------
+-- Google Drive sync: each workshop's folder in the Shared Drive, and which
+-- files have been copied there. Safe to run again.
+
+alter table portal_workshops add column if not exists drive_sync_folder_id text;
+alter table portal_files add column if not exists drive_file_id text;

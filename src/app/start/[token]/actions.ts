@@ -1,5 +1,6 @@
 'use server';
 
+import { syncLater } from '@/lib/portal/drive-sync';
 import { revalidatePath } from 'next/cache';
 import { INTAKE_FIELDS, intakeComplete } from '@/lib/portal/intake';
 import { portalStore } from '@/lib/portal/store';
@@ -33,6 +34,7 @@ export async function saveIntake(token: string, _prev: IntakeState | undefined, 
     clientName: intake.company?.trim() || w.clientName,
     status: w.status === 'intake' && intakeDone ? 'ready' : w.status,
   });
+  if (intakeDone) syncLater(w.id);
   revalidatePath(`/start/${token}`);
   return { saved: true, values: intake };
 }

@@ -65,6 +65,8 @@ export interface PortalStore {
   /** Local: the bytes. Supabase: a short-lived signed URL to redirect to. */
   download(f: WorkshopFile): Promise<{ bytes: Uint8Array } | { url: string }>;
   deleteFile(id: string): Promise<void>;
+  /** Record that a file has been copied to Google Drive */
+  setFileDriveId(id: string, driveFileId: string): Promise<void>;
 }
 
 // ---------- shared helpers ----------
@@ -242,6 +244,13 @@ const localStore: PortalStore = {
   listFiles: async (workshopId) => (await load()).files.filter((f) => f.workshopId === workshopId),
   getFile: async (id) => (await load()).files.find((f) => f.id === id) ?? null,
   download: async (f) => ({ bytes: new Uint8Array(await readFile(join(FILES_DIR, f.path))) }),
+  setFileDriveId: (id, driveFileId) =>
+    serial(async () => {
+      const db = await load();
+      const f = db.files.find((x) => x.id === id);
+      if (f) f.driveFileId = driveFileId;
+      await save(db);
+    }),
   deleteFile: (id) =>
     serial(async () => {
       const db = await load();
@@ -271,6 +280,7 @@ const rowToWorkshop = (r: Record<string, any>): PortalWorkshop => ({
   submittedAt: r.submitted_at ?? null,
   completedAt: r.completed_at ?? null,
   archivedAt: r.archived_at ?? null,
+  driveSyncFolderId: r.drive_sync_folder_id ?? null,
   stripeSessionId: r.stripe_session_id ?? null,
   amountPaid: r.amount_paid ?? null,
   booking: r.booking ?? null,
@@ -283,7 +293,7 @@ const workshopToRow = (w: Partial<PortalWorkshop>) => {
     tier: 'tier', status: 'status', clientName: 'client_name', contactName: 'contact_name',
     contactEmail: 'contact_email', intake: 'intake', intakeDone: 'intake_done',
     driveFolderUrl: 'drive_folder_url', teamNotes: 'team_notes', submittedAt: 'submitted_at',
-    completedAt: 'completed_at', archivedAt: 'archived_at',
+    completedAt: 'completed_at', archivedAt: 'archived_at', driveSyncFolderId: 'drive_sync_folder_id',
     stripeSessionId: 'stripe_session_id', amountPaid: 'amount_paid', booking: 'booking',
   };
   // answers are only written through portal_merge_answer, never wholesale
@@ -299,6 +309,7 @@ const rowToFile = (r: Record<string, any>): WorkshopFile => ({
   id: r.id, workshopId: r.workshop_id, name: r.name, size: r.size, type: r.type ?? '',
   path: r.path, uploadedBy: r.uploaded_by, slideId: r.slide_id ?? null, transcript: r.transcript ?? null,
   seconds: r.seconds === null || r.seconds === undefined ? null : Number(r.seconds), createdAt: r.created_at,
+  driveFileId: r.drive_file_id ?? null,
 });
 
 function supabaseStore(db: SupabaseClient): PortalStore {
@@ -435,6 +446,9 @@ function supabaseStore(db: SupabaseClient): PortalStore {
     async download(f) {
       const { signedUrl } = must(await db.storage.from(BUCKET).createSignedUrl(f.path, 120, { download: f.name }));
       return { url: signedUrl };
+    },
+    async setFileDriveId(id, driveFileId) {
+      must(await db.from('portal_files').update({ drive_file_id: driveFileId }).eq('id', id).select());
     },
     async deleteFile(id) {
       const f = await this.getFile(id);
