@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { anthropic, FALLBACK, MODEL } from '@/lib/portal/guide';
 import { hit, visitorId } from '@/lib/portal/ratelimit';
 import { VIVI_LIMITS, viviSystem } from '@/lib/portal/vivi-chat';
+import { describePage, isConversationId, saveConversation } from '@/lib/portal/vivi-log';
 import type { ChatTurn } from '@/lib/portal/types';
 
 export const dynamic = 'force-dynamic';
@@ -36,14 +37,19 @@ export async function POST(req: Request) {
   }
   if (turns[turns.length - 1].role !== 'user') return NextResponse.json({ error: 'bad conversation' }, { status: 400 });
 
+  const visitor = visitorId(req);
   const hour = new Date().toISOString().slice(0, 13);
   const [mine, today] = await Promise.all([
-    hit(`v:${visitorId(req)}:${hour}`),
+    hit(`v:${visitor}:${hour}`),
     hit(`day:${hour.slice(0, 10)}`),
   ]);
   if (mine > VIVI_LIMITS.perVisitorPerHour || today > VIVI_LIMITS.perDay) {
     return NextResponse.json({ error: BUSY }, { status: 429 });
   }
+
+  // Saved for the team area once ViVi has replied
+  const conversationId = isConversationId(body?.conversationId) ? body.conversationId : null;
+  const where = conversationId ? await describePage(body?.page) : null;
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
@@ -67,7 +73,15 @@ export async function POST(req: Request) {
         }
         const final = await s.finalMessage();
         if (final.stop_reason === 'refusal' || !said.trim()) {
-          controller.enqueue(encoder.encode((said ? '\n\n' : '') + "Sorry, I can't help with that one. The team can, through the full ViVi conversation."));
+          const note = (said ? '\n\n' : '') + "Sorry, I can't help with that one. The team can, through the full ViVi conversation.";
+          said += note;
+          controller.enqueue(encoder.encode(note));
+        }
+        if (conversationId && where) {
+          await saveConversation({
+            id: conversationId, visitor, page: where.page, workshopId: where.workshopId,
+            turns: [...turns, { role: 'assistant', content: said.trim() }],
+          }).catch((err) => console.error('saving ViVi conversation failed', err));
         }
       } catch (err) {
         console.error('vivi chat failed', err);

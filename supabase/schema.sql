@@ -155,3 +155,19 @@ as $$
   returning count;
 $$;
 revoke execute on function vivi_hit(text) from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- ViVi conversations, saved for the team area. Safe to run again.
+
+create table if not exists vivi_conversations (
+  id uuid primary key,
+  visitor text not null,            -- hashed, never the raw IP
+  page text not null,               -- 'Landing', 'Buy: Guided', 'Client workshop', ...
+  workshop_id uuid references portal_workshops (id) on delete set null,
+  turns jsonb not null default '[]'::jsonb,
+  message_count integer not null default 0,
+  started_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists vivi_conversations_updated on vivi_conversations (updated_at desc);
+alter table vivi_conversations enable row level security;

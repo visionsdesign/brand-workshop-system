@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { usingSupabase } from '@/lib/portal/store';
 import { logout } from './actions';
 
-export function TeamShell({ email, active, children }: { email: string; active: 'workshops' | 'codes'; children: ReactNode }) {
+export function TeamShell({ email, active, children }: { email: string; active: 'workshops' | 'codes' | 'vivi'; children: ReactNode }) {
   return (
     <div className="tm">
       <header className="tm-bar">
@@ -11,6 +11,7 @@ export function TeamShell({ email, active, children }: { email: string; active: 
         <nav>
           <Link className={active === 'workshops' ? 'is-active' : ''} href="/team">Workshops</Link>
           <Link className={active === 'codes' ? 'is-active' : ''} href="/team/codes">Codes</Link>
+          <Link className={active === 'vivi' ? 'is-active' : ''} href="/team/vivi">ViVi</Link>
         </nav>
         <span className="tm-who">{email}</span>
         <form action={logout}>

@@ -20,6 +20,8 @@ export function ViviBubble() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const log = useRef<HTMLDivElement>(null);
+  // One ID per conversation, so the team sees each chat as a single thread
+  const conversationId = useRef<string | null>(null);
 
   // Show the questions on arrival on wide screens, unless closed earlier this visit
   useEffect(() => {
@@ -40,6 +42,7 @@ export function ViviBubble() {
   /** A sample question: answered straight away from the written answer, and the chat carries on from there */
   function sample(i: number) {
     setError('');
+    conversationId.current = null;
     setTurns([
       { role: 'user', content: VIVI_FAQ[i].q },
       { role: 'assistant', content: VIVI_FAQ[i].a.join('\n\n') },
@@ -56,7 +59,12 @@ export function ViviBubble() {
     setTurns([...next, { role: 'assistant', content: '' }]);
     setBusy(true);
     try {
-      const r = await fetch('/api/vivi', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ turns: next }) });
+      conversationId.current ??= crypto.randomUUID();
+      const r = await fetch('/api/vivi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ turns: next, conversationId: conversationId.current, page: window.location.pathname }),
+      });
       if (!r.ok || !r.body) {
         setTurns(next.slice(0, -1));
         setInput(text);
@@ -87,7 +95,7 @@ export function ViviBubble() {
         <div className="vivi-panel" role="dialog" aria-label="Ask ViVi">
           <div className="vivi-panel-head">
             {turns.length ? (
-              <button type="button" className="vivi-back" onClick={() => { setTurns([]); setError(''); }}>← Questions</button>
+              <button type="button" className="vivi-back" onClick={() => { setTurns([]); setError(''); conversationId.current = null; }}>← Questions</button>
             ) : (
               <span><strong>Hi, I’m ViVi.</strong> Ask me anything about the workshop:</span>
             )}
@@ -126,7 +134,7 @@ export function ViviBubble() {
           </form>
 
           <p className="vivi-foot">
-            ViVi is an AI assistant, so answers may not be perfect.{' '}
+            ViVi is an AI assistant, so answers may not be perfect. Chats are saved so our team can follow up.{' '}
             <a href={VIVI_URL} target="_blank" rel="noreferrer">Talk to the team ↗</a>
           </p>
         </div>
@@ -141,16 +149,18 @@ export function ViviBubble() {
       >
         <svg className="vivi-ring" viewBox="0 0 200 200" aria-hidden>
           <defs>
-            <path id="vivi-circle" d="M100,100 m-82,0 a82,82 0 1,1 164,0 a82,82 0 1,1 -164,0" />
+            <path id="vivi-circle" d="M100,100 m-74,0 a74,74 0 1,1 148,0 a74,74 0 1,1 -148,0" />
           </defs>
           <text>
-            <textPath href="#vivi-circle" textLength="512" lengthAdjust="spacing">{RING}</textPath>
+            <textPath href="#vivi-circle" textLength="462" lengthAdjust="spacing">{RING}</textPath>
           </text>
         </svg>
-        <video className="vivi-face" autoPlay loop muted playsInline preload="metadata" poster="/img/vivi-poster.jpg" aria-hidden>
-          <source src="/img/vivi.webm" type="video/webm" />
-          <source src="/img/vivi.mp4" type="video/mp4" />
-        </video>
+        <span className="vivi-face-wrap" aria-hidden>
+          <video className="vivi-face" autoPlay loop muted playsInline preload="metadata" poster="/img/vivi-poster.jpg">
+            <source src="/img/vivi.webm" type="video/webm" />
+            <source src="/img/vivi.mp4" type="video/mp4" />
+          </video>
+        </span>
       </button>
     </div>
   );
