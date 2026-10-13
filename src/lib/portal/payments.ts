@@ -17,7 +17,7 @@ export const TIER_PRODUCT: Record<Tier, { name: string; description: string }> =
 
 /** Shown with the prices: the workshop fee is credited against a full branding project */
 export const CREDIT_LINE =
-  'Go on to a branding project with Visions within 60 days and the full workshop fee comes off the project.';
+  'Go on to a branding project with Visions within 60 days and the full workshop fee comes off the project. T&Cs apply.';
 
 const VAT_PERCENT = 20;
 export const includesVat = () => process.env.PRICES_INCLUDE_VAT === 'true';
